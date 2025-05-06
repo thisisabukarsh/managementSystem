@@ -1,0 +1,100 @@
+/* Project Modal Specific Styles */
+#projectModal {
+  @apply modal-overlay;
+}
+
+#projectModal > div {
+  @apply modal-container modal-md;
+}
+
+#projectForm {
+  @apply space-y-6;
+}
+
+#projectForm .form-group {
+  @apply relative;
+}
+
+#projectForm .form-label {
+  @apply block text-sm font-medium text-gray-700 mb-2;
+}
+
+#projectForm .form-input {
+  @apply w-full px-4 py-2.5 rounded-lg border border-gray-300 
+  focus:ring-2 focus:ring-blue-200 focus:border-blue-500 
+  transition-all duration-300 bg-white;
+}
+
+#projectForm .form-input:hover {
+  @apply border-gray-400;
+}
+
+#projectForm .form-checkbox {
+  @apply h-5 w-5 text-blue-600 rounded border-gray-300 
+  focus:ring-2 focus:ring-blue-200 focus:ring-offset-0
+  transition-all duration-300;
+}
+
+/* Project Form Grid Layout */
+#projectForm .form-grid {
+  @apply grid grid-cols-1 md:grid-cols-2 gap-6;
+}
+
+/* Project Form Full Width Fields */
+#projectForm .form-full-width {
+  @apply col-span-full;
+}
+
+/* Project Form Currency Input */
+#projectForm .currency-input {
+  @apply relative;
+}
+
+#projectForm .currency-input input {
+  @apply pr-8;
+}
+
+#projectForm .currency-input::after {
+  content: "ريال";
+  @apply absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500;
+}
+
+/* Project Form Service Types */
+#projectForm .service-types-container {
+  @apply grid grid-cols-2 md:grid-cols-3 gap-4 mt-2;
+}
+
+#projectForm .service-type-item {
+  @apply flex items-center space-x-2 p-3 rounded-lg border border-gray-200 
+  hover:border-blue-500 hover:bg-blue-50 transition-all duration-300;
+}
+
+/* Project Form File Upload */
+#projectForm .file-upload-container {
+  @apply relative;
+}
+
+#projectForm .file-upload-label {
+  @apply flex items-center justify-center px-4 py-2.5 
+  border-2 border-dashed border-gray-300 rounded-lg 
+  cursor-pointer hover:border-blue-500 transition-all duration-300;
+}
+
+#projectForm .file-upload-label:hover {
+  @apply bg-blue-50;
+}
+
+#projectForm .file-upload-icon {
+  @apply text-gray-400 mr-2;
+}
+
+/* Project Form Responsive Adjustments */
+@media (max-width: 768px) {
+  #projectForm .form-grid {
+    @apply grid-cols-1;
+  }
+
+  #projectForm .service-types-container {
+    @apply grid-cols-1;
+  }
+}

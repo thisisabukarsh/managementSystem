@@ -1,0 +1,66 @@
+/* Tooltip */
+.tooltip {
+  @apply absolute invisible bg-gray-900 text-white px-2 py-1 rounded text-sm;
+  transition: all 0.2s ease-in-out;
+}
+
+.tooltip-trigger:hover .tooltip {
+  @apply visible;
+  transform: translateY(-5px);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .search-input {
+    @apply w-full;
+  }
+
+  .modal-container {
+    @apply mx-2;
+  }
+
+  .stat-card {
+    @apply p-4;
+  }
+}
+
+@media (max-width: 768px) {
+  .modal-container {
+    @apply mx-2;
+  }
+
+  .service-types-grid {
+    @apply grid-cols-1;
+  }
+}
