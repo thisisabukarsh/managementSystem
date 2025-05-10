@@ -3,21 +3,44 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import ProjectCard from '../components/ProjectCard';
 import Filters from '../components/Filters';
-import { supabase } from '../services/supabase';
+import { supabase, PROJECT_TYPES, queries } from '../services/supabase';
+import toast from 'react-hot-toast';
 
 const Projects = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
+  const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newProject, setNewProject] = useState({
+    name: "",
+    type: PROJECT_TYPES.INSTALLATION,
+    customer_id: "",
+    quotation_number: "",
+    location: "",
+    received_at: "",
+    delivered_at: "",
+    work_duration: "",
+    total_amount: "",
+    paid_amount: "",
+    remaining_amount: "",
+    notes: "",
+  });
   const [filters, setFilters] = useState({
     search: '',
     type: '',
     status: ''
   });
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [editProject, setEditProject] = useState(null);
+  const [deleteProject, setDeleteProject] = useState(null);
 
   useEffect(() => {
     fetchProjects();
+    fetchCustomers();
   }, []);
 
   const fetchProjects = async () => {
@@ -44,6 +67,16 @@ const Projects = () => {
     }
   };
 
+  const fetchCustomers = async () => {
+    try {
+      const { data, error } = await queries.getCustomers();
+      if (error) throw error;
+      setCustomers(data);
+    } catch (error) {
+      toast.error('Error fetching customers');
+    }
+  };
+
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value }));
   };
@@ -57,6 +90,105 @@ const Projects = () => {
     return matchesSearch && matchesType && matchesStatus;
   });
 
+  const handleCreateProject = async (e) => {
+    e.preventDefault();
+    try {
+      const { error } = await supabase.from('projects').insert([
+        {
+          name: newProject.name,
+          type: newProject.type,
+          customer_id: newProject.customer_id,
+          quotation_number: newProject.quotation_number,
+          location: newProject.location,
+          received_at: newProject.received_at,
+          delivered_at: newProject.delivered_at,
+          work_duration: newProject.work_duration,
+          total_amount: newProject.total_amount,
+          paid_amount: newProject.paid_amount,
+          remaining_amount: newProject.remaining_amount,
+          notes: newProject.notes,
+        }
+      ]);
+      if (error) throw error;
+      toast.success("Project created successfully!");
+      setShowCreateModal(false);
+      setNewProject({
+        name: "",
+        type: PROJECT_TYPES.INSTALLATION,
+        customer_id: "",
+        quotation_number: "",
+        location: "",
+        received_at: "",
+        delivered_at: "",
+        work_duration: "",
+        total_amount: "",
+        paid_amount: "",
+        remaining_amount: "",
+        notes: "",
+      });
+      fetchProjects();
+    } catch (error) {
+      toast.error("Error creating project: " + error.message);
+    }
+  };
+
+  const openEditModal = (project) => {
+    setEditProject({ ...project });
+    setShowEditModal(true);
+  };
+
+  const openDeleteModal = (project) => {
+    setDeleteProject(project);
+    setShowDeleteModal(true);
+  };
+
+  const handleEditProject = async (e) => {
+    e.preventDefault();
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .update({
+          name: editProject.name,
+          type: editProject.type,
+          customer_id: editProject.customer_id,
+          quotation_number: editProject.quotation_number,
+          location: editProject.location,
+          received_at: editProject.received_at,
+          delivered_at: editProject.delivered_at,
+          work_duration: editProject.work_duration,
+          total_amount: editProject.total_amount,
+          paid_amount: editProject.paid_amount,
+          remaining_amount: editProject.remaining_amount,
+          notes: editProject.notes,
+        })
+        .eq('id', editProject.id);
+      if (error) throw error;
+      toast.success('Project updated successfully!');
+      setShowEditModal(false);
+      setEditProject(null);
+      fetchProjects();
+    } catch (error) {
+      toast.error('Error updating project: ' + error.message);
+    }
+  };
+
+  const handleDeleteProject = async (e) => {
+    e.preventDefault();
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .delete()
+        .eq('id', deleteProject.id);
+      if (error) throw error;
+      toast.success('Project deleted successfully!');
+      setShowDeleteModal(false);
+      setDeleteProject(null);
+      fetchProjects();
+    } catch (error) {
+      toast.error('Error deleting project: ' + error.message);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -66,30 +198,379 @@ const Projects = () => {
   }
 
   return (
-    <div className="bg-white shadow rounded-lg p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">
-          {t("projects.title")}
+    <div className="bg-white shadow rounded-lg p-8 max-w-6xl mx-auto mt-8">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
+          <span className="text-primary">{t("projects.title")}</span>
         </h1>
         <button
-          onClick={() => navigate('/projects/new')}
-          className="bg-primary text-white px-4 py-2 rounded-md hover:bg-primary-dark"
+          onClick={() => setShowCreateModal(true)}
+          className="bg-primary text-white px-6 py-2 rounded-lg shadow hover:bg-primary-dark transition"
         >
-          {t("projects.addNew")}
+          + {t("projects.addNew")}
         </button>
       </div>
 
       <Filters filters={filters} onFilterChange={handleFilterChange} />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredProjects.map(project => (
-          <ProjectCard key={project.id} project={project} />
-        ))}
+      <div className="overflow-x-auto rounded-lg shadow">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-100">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Name</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Type</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Customer</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Quotation #</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Location</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Received</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Delivered</th>
+              <th className="px-6 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {filteredProjects.map(project => (
+              <tr key={project.id}>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">{project.name}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{project.type}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{project.customer_name}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{project.quotation_number}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{project.location}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{project.received_at}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{project.delivered_at}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium flex gap-2 justify-center">
+                  <button
+                    className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50"
+                    title="Edit"
+                    onClick={() => openEditModal(project)}
+                  >Edit</button>
+                  <button
+                    className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"
+                    title="Delete"
+                    onClick={() => openDeleteModal(project)}
+                  >Delete</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
-      {filteredProjects.length === 0 && (
-        <div className="text-center text-gray-500 py-12">
-          {t("common.noResults")}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-lg w-full">
+            <h2 className="text-lg font-medium mb-4">{t("projects.addNew")}</h2>
+            <form onSubmit={handleCreateProject} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Name</label>
+                <input
+                  type="text"
+                  required
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                  value={newProject.name}
+                  onChange={(e) => setNewProject({ ...newProject, name: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Type</label>
+                <select
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                  value={newProject.type}
+                  onChange={(e) => setNewProject({ ...newProject, type: e.target.value })}
+                >
+                  <option value={PROJECT_TYPES.INSTALLATION}>Installation</option>
+                  <option value={PROJECT_TYPES.MAINTENANCE}>Maintenance</option>
+                  <option value={PROJECT_TYPES.REPAIR}>Repair</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Customer</label>
+                <select
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                  value={newProject.customer_id}
+                  onChange={(e) => setNewProject({ ...newProject, customer_id: e.target.value })}
+                  required
+                >
+                  <option value="">Select Customer</option>
+                  {customers.map((customer) => (
+                    <option key={customer.id} value={customer.id}>{customer.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Quotation #</label>
+                <input
+                  type="text"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                  value={newProject.quotation_number}
+                  onChange={(e) => setNewProject({ ...newProject, quotation_number: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Location</label>
+                <input
+                  type="text"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                  value={newProject.location}
+                  onChange={(e) => setNewProject({ ...newProject, location: e.target.value })}
+                />
+              </div>
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700">Received At</label>
+                  <input
+                    type="date"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                    value={newProject.received_at}
+                    onChange={(e) => setNewProject({ ...newProject, received_at: e.target.value })}
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700">Delivered At</label>
+                  <input
+                    type="date"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                    value={newProject.delivered_at}
+                    onChange={(e) => setNewProject({ ...newProject, delivered_at: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700">Work Duration</label>
+                  <input
+                    type="text"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                    value={newProject.work_duration}
+                    onChange={(e) => setNewProject({ ...newProject, work_duration: e.target.value })}
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700">Total Amount</label>
+                  <input
+                    type="number"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                    value={newProject.total_amount}
+                    onChange={(e) => setNewProject({ ...newProject, total_amount: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700">Paid Amount</label>
+                  <input
+                    type="number"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                    value={newProject.paid_amount}
+                    onChange={(e) => setNewProject({ ...newProject, paid_amount: e.target.value })}
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700">Remaining Amount</label>
+                  <input
+                    type="number"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                    value={newProject.remaining_amount}
+                    onChange={(e) => setNewProject({ ...newProject, remaining_amount: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Notes</label>
+                <textarea
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                  value={newProject.notes}
+                  onChange={(e) => setNewProject({ ...newProject, notes: e.target.value })}
+                />
+              </div>
+              <div className="mt-6 flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                  {t("common.cancel")}
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary-dark"
+                >
+                  {t("common.save")}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showEditModal && editProject && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-lg w-full">
+            <h2 className="text-lg font-medium mb-4">{t("projects.edit")}</h2>
+            <form onSubmit={handleEditProject} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Name</label>
+                <input
+                  type="text"
+                  required
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                  value={editProject.name}
+                  onChange={(e) => setEditProject({ ...editProject, name: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Type</label>
+                <select
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                  value={editProject.type}
+                  onChange={(e) => setEditProject({ ...editProject, type: e.target.value })}
+                >
+                  <option value={PROJECT_TYPES.INSTALLATION}>Installation</option>
+                  <option value={PROJECT_TYPES.MAINTENANCE}>Maintenance</option>
+                  <option value={PROJECT_TYPES.REPAIR}>Repair</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Customer</label>
+                <select
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                  value={editProject.customer_id}
+                  onChange={(e) => setEditProject({ ...editProject, customer_id: e.target.value })}
+                  required
+                >
+                  <option value="">Select Customer</option>
+                  {customers.map((customer) => (
+                    <option key={customer.id} value={customer.id}>{customer.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Quotation #</label>
+                <input
+                  type="text"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                  value={editProject.quotation_number}
+                  onChange={(e) => setEditProject({ ...editProject, quotation_number: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Location</label>
+                <input
+                  type="text"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                  value={editProject.location}
+                  onChange={(e) => setEditProject({ ...editProject, location: e.target.value })}
+                />
+              </div>
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700">Received At</label>
+                  <input
+                    type="date"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                    value={editProject.received_at}
+                    onChange={(e) => setEditProject({ ...editProject, received_at: e.target.value })}
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700">Delivered At</label>
+                  <input
+                    type="date"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                    value={editProject.delivered_at}
+                    onChange={(e) => setEditProject({ ...editProject, delivered_at: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700">Work Duration</label>
+                  <input
+                    type="text"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                    value={editProject.work_duration}
+                    onChange={(e) => setEditProject({ ...editProject, work_duration: e.target.value })}
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700">Total Amount</label>
+                  <input
+                    type="number"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                    value={editProject.total_amount}
+                    onChange={(e) => setEditProject({ ...editProject, total_amount: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700">Paid Amount</label>
+                  <input
+                    type="number"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                    value={editProject.paid_amount}
+                    onChange={(e) => setEditProject({ ...editProject, paid_amount: e.target.value })}
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700">Remaining Amount</label>
+                  <input
+                    type="number"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                    value={editProject.remaining_amount}
+                    onChange={(e) => setEditProject({ ...editProject, remaining_amount: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Notes</label>
+                <textarea
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                  value={editProject.notes}
+                  onChange={(e) => setEditProject({ ...editProject, notes: e.target.value })}
+                />
+              </div>
+              <div className="mt-6 flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                  {t("common.cancel")}
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary-dark"
+                >
+                  {t("common.save")}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showDeleteModal && deleteProject && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h2 className="text-lg font-medium mb-4">Delete Project</h2>
+            <p>Are you sure you want to delete <span className="font-bold">{deleteProject.name}</span>?</p>
+            <div className="mt-6 flex justify-end space-x-3">
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                {t("common.cancel")}
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteProject}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
+              >
+                {t("common.delete")}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
