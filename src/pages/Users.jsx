@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { supabase, USER_ROLES, queries } from "../services/supabase";
 import { authService } from "../services/auth";
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
+import toast from 'react-hot-toast';
 
 const SUPABASE_ADMIN_KEY = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
 const SUPABASE_PROJECT_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -111,9 +112,11 @@ const Users = () => {
         role: USER_ROLES.USER,
       });
       setShowCreateModal(false);
+      toast.success("User created successfully!");
       fetchUsers();
     } catch (error) {
       setError(error.message);
+      toast.error("Error creating user: " + error.message);
     } finally {
       setLoading(false);
     }
@@ -165,11 +168,11 @@ const Users = () => {
 
       setShowDeleteModal(false);
       setSelectedUser(null);
-      alert("User deleted successfully!");
+      toast.success("User deleted successfully!");
       fetchUsers();
     } catch (error) {
       setError(error.message);
-      alert("Error deleting user: " + error.message);
+      toast.error("Error deleting user: " + error.message);
     } finally {
       setLoading(false);
     }
@@ -192,11 +195,11 @@ const Users = () => {
 
       setShowEditModal(false);
       setEditUser({ user_id: "", username: "", email: "", role: USER_ROLES.USER });
-      alert("User role updated successfully!");
+      toast.success("User role updated successfully!");
       fetchUsers();
     } catch (error) {
       setError(error.message);
-      alert("Error updating user: " + error.message);
+      toast.error("Error updating user: " + error.message);
     } finally {
       setLoading(false);
     }

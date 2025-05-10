@@ -7,6 +7,7 @@ import Projects from './pages/Projects';
 import Users from './pages/Users';
 import { authService } from './services/auth';
 import { USER_ROLES } from './services/supabase';
+import { Toaster } from 'react-hot-toast';
 
 function App() {
   const { i18n } = useTranslation();
@@ -44,33 +45,36 @@ function App() {
   };
 
   return (
-    <Router>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route
-          path="/"
-          element={
-            <PrivateRoute>
-              <Layout />
-            </PrivateRoute>
-          }
-        >
-          <Route index element={<Navigate to="/projects" replace />} />
-          <Route path="projects" element={<Projects />} />
-          <Route path="customers" element={<div className='text-2xl text-red-500 font-bold text-center'>Customers Page</div>} />
-          <Route path="teams" element={<div>Teams Page</div>} />
-          <Route path="materials" element={<div>Materials Page</div>} />
+    <>
+      <Toaster position="top-right" />
+      <Router>
+        <Routes>
+          <Route path="/login" element={<Login />} />
           <Route
-            path="users"
+            path="/"
             element={
-              <AdminRoute>
-                <Users />
-              </AdminRoute>
+              <PrivateRoute>
+                <Layout />
+              </PrivateRoute>
             }
-          />
-        </Route>
-      </Routes>
-    </Router>
+          >
+            <Route index element={<Navigate to="/projects" replace />} />
+            <Route path="projects" element={<Projects />} />
+            <Route path="customers" element={<div className='text-2xl text-red-500 font-bold text-center'>Customers Page</div>} />
+            <Route path="teams" element={<div>Teams Page</div>} />
+            <Route path="materials" element={<div>Materials Page</div>} />
+            <Route
+              path="users"
+              element={
+                <AdminRoute>
+                  <Users />
+                </AdminRoute>
+              }
+            />
+          </Route>
+        </Routes>
+      </Router>
+    </>
   );
 }
 
