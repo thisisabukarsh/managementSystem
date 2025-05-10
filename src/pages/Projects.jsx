@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import ProjectCard from '../components/ProjectCard';
-import Filters from '../components/Filters';
-import { supabase, PROJECT_TYPES, queries } from '../services/supabase';
+import { supabase, PROJECT_TYPES, formatCurrency, formatDate } from '../services/supabase';
 import toast from 'react-hot-toast';
 
 const Projects = () => {
@@ -15,7 +13,6 @@ const Projects = () => {
   const [error, setError] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newProject, setNewProject] = useState({
-    name: "",
     type: PROJECT_TYPES.INSTALLATION,
     customer_id: "",
     quotation_number: "",
@@ -45,23 +42,26 @@ const Projects = () => {
 
   const fetchProjects = async () => {
     try {
-      const { data, error } = await supabase
+      setLoading(true);
+      // Fetch projects
+      const { data: projects, error: projectsError } = await supabase
         .from('projects')
-        .select(`
-          *,
-          customers (
-            name
-          )
-        `)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setProjects(data.map(project => ({
+        .select('*');
+      // Fetch customers
+      const { data: customers, error: customersError } = await supabase
+        .from('customers')
+        .select('id, name, phone');
+      if (projectsError) throw projectsError;
+      if (customersError) throw customersError;
+      // Merge customer info into projects
+      const projectsWithCustomer = projects.map(project => ({
         ...project,
-        customer_name: project.customers?.name
-      })));
+        customer: customers.find(c => c.id === project.customer_id) || null
+      }));
+      setProjects(projectsWithCustomer);
     } catch (error) {
       console.error('Error fetching projects:', error);
+      toast.error('Failed to fetch projects');
     } finally {
       setLoading(false);
     }
@@ -69,7 +69,10 @@ const Projects = () => {
 
   const fetchCustomers = async () => {
     try {
-      const { data, error } = await queries.getCustomers();
+      const { data, error } = await supabase
+        .from('customers')
+        .select('id, name, phone');
+      
       if (error) throw error;
       setCustomers(data);
     } catch (error) {
@@ -82,9 +85,10 @@ const Projects = () => {
   };
 
   const filteredProjects = projects.filter(project => {
-    const matchesSearch = project.quotation_number.toLowerCase().includes(filters.search.toLowerCase()) ||
-                         project.location.toLowerCase().includes(filters.search.toLowerCase()) ||
-                         project.customer_name?.toLowerCase().includes(filters.search.toLowerCase());
+    const matchesSearch = 
+      project.quotation_number?.toLowerCase().includes(filters.search.toLowerCase()) ||
+      project.location?.toLowerCase().includes(filters.search.toLowerCase()) ||
+      project.customer?.name?.toLowerCase().includes(filters.search.toLowerCase());
     const matchesType = !filters.type || project.type === filters.type;
     const matchesStatus = !filters.status || project.status === filters.status;
     return matchesSearch && matchesType && matchesStatus;
@@ -93,9 +97,9 @@ const Projects = () => {
   const handleCreateProject = async (e) => {
     e.preventDefault();
     try {
-      const { error } = await supabase.from('projects').insert([
-        {
-          name: newProject.name,
+      const { data, error } = await supabase
+        .from('projects')
+        .insert([{
           type: newProject.type,
           customer_id: newProject.customer_id,
           quotation_number: newProject.quotation_number,
@@ -103,17 +107,17 @@ const Projects = () => {
           received_at: newProject.received_at,
           delivered_at: newProject.delivered_at,
           work_duration: newProject.work_duration,
-          total_amount: newProject.total_amount,
-          paid_amount: newProject.paid_amount,
-          remaining_amount: newProject.remaining_amount,
+          total_amount: parseFloat(newProject.total_amount) || 0,
+          paid_amount: parseFloat(newProject.paid_amount) || 0,
+          remaining_amount: parseFloat(newProject.remaining_amount) || 0,
           notes: newProject.notes,
-        }
-      ]);
+        }])
+        .select();
+
       if (error) throw error;
       toast.success("Project created successfully!");
       setShowCreateModal(false);
       setNewProject({
-        name: "",
         type: PROJECT_TYPES.INSTALLATION,
         customer_id: "",
         quotation_number: "",
@@ -132,23 +136,12 @@ const Projects = () => {
     }
   };
 
-  const openEditModal = (project) => {
-    setEditProject({ ...project });
-    setShowEditModal(true);
-  };
-
-  const openDeleteModal = (project) => {
-    setDeleteProject(project);
-    setShowDeleteModal(true);
-  };
-
   const handleEditProject = async (e) => {
     e.preventDefault();
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('projects')
         .update({
-          name: editProject.name,
           type: editProject.type,
           customer_id: editProject.customer_id,
           quotation_number: editProject.quotation_number,
@@ -156,12 +149,14 @@ const Projects = () => {
           received_at: editProject.received_at,
           delivered_at: editProject.delivered_at,
           work_duration: editProject.work_duration,
-          total_amount: editProject.total_amount,
-          paid_amount: editProject.paid_amount,
-          remaining_amount: editProject.remaining_amount,
+          total_amount: parseFloat(editProject.total_amount) || 0,
+          paid_amount: parseFloat(editProject.paid_amount) || 0,
+          remaining_amount: parseFloat(editProject.remaining_amount) || 0,
           notes: editProject.notes,
         })
-        .eq('id', editProject.id);
+        .eq('id', editProject.id)
+        .select();
+
       if (error) throw error;
       toast.success('Project updated successfully!');
       setShowEditModal(false);
@@ -172,13 +167,13 @@ const Projects = () => {
     }
   };
 
-  const handleDeleteProject = async (e) => {
-    e.preventDefault();
+  const handleDeleteProject = async () => {
     try {
       const { error } = await supabase
         .from('projects')
         .delete()
         .eq('id', deleteProject.id);
+
       if (error) throw error;
       toast.success('Project deleted successfully!');
       setShowDeleteModal(false);
@@ -198,7 +193,7 @@ const Projects = () => {
   }
 
   return (
-    <div className="bg-white shadow rounded-lg p-8 max-w-6xl mx-auto mt-8">
+    <div className="bg-white shadow rounded-lg p-8 max-w-7xl mx-auto mt-8">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
           <span className="text-primary">{t("projects.title")}</span>
@@ -211,121 +206,170 @@ const Projects = () => {
         </button>
       </div>
 
-      <Filters filters={filters} onFilterChange={handleFilterChange} />
+      {/* Filters */}
+      <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <input
+          type="text"
+          placeholder="Search by quotation, location, or customer..."
+          className="border rounded-lg px-4 py-2"
+          value={filters.search}
+          onChange={(e) => handleFilterChange('search', e.target.value)}
+        />
+        <select
+          className="border rounded-lg px-4 py-2"
+          value={filters.type}
+          onChange={(e) => handleFilterChange('type', e.target.value)}
+        >
+          <option value="">All Types</option>
+          {Object.values(PROJECT_TYPES).map(type => (
+            <option key={type} value={type}>{type}</option>
+          ))}
+        </select>
+        <select
+          className="border rounded-lg px-4 py-2"
+          value={filters.status}
+          onChange={(e) => handleFilterChange('status', e.target.value)}
+        >
+          <option value="">All Status</option>
+          <option value="pending">Pending</option>
+          <option value="in_progress">In Progress</option>
+          <option value="completed">Completed</option>
+        </select>
+      </div>
 
+      {/* Projects Table */}
       <div className="overflow-x-auto rounded-lg shadow">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-100">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Name</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Quotation #</th>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Type</th>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Customer</th>
-              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Quotation #</th>
-              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Location</th>
-              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Received</th>
-              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Delivered</th>
               <th className="px-6 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {filteredProjects.map(project => (
-              <tr key={project.id}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">{project.name}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{project.type}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{project.customer_name}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{project.quotation_number}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{project.location}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{project.received_at}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{project.delivered_at}</td>
+              <tr key={project.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                  {project.quotation_number}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {project.type}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {project.customer?.name}
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium flex gap-2 justify-center">
                   <button
-                    className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50"
-                    title="Edit"
-                    onClick={() => openEditModal(project)}
-                  >Edit</button>
-                  <button
-                    className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"
-                    title="Delete"
-                    onClick={() => openDeleteModal(project)}
-                  >Delete</button>
+                    className="text-primary hover:text-primary-dark p-1 rounded hover:bg-primary-50"
+                    title="Show Details"
+                    onClick={() => navigate(`/projects/${project.id}`)}
+                  >
+                    Show Details
+                  </button>
                 </td>
               </tr>
             ))}
+            {filteredProjects.length === 0 && (
+              <tr>
+                <td colSpan="4" className="px-6 py-4 text-center text-sm text-gray-500">
+                  No projects found
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
 
+      {/* Create Project Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-lg w-full">
-            <h2 className="text-lg font-medium mb-4">{t("projects.addNew")}</h2>
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <h2 className="text-lg font-medium mb-4">Add New Project</h2>
             <form onSubmit={handleCreateProject} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Name</label>
-                <input
-                  type="text"
-                  required
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
-                  value={newProject.name}
-                  onChange={(e) => setNewProject({ ...newProject, name: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Type</label>
-                <select
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
-                  value={newProject.type}
-                  onChange={(e) => setNewProject({ ...newProject, type: e.target.value })}
-                >
-                  <option value={PROJECT_TYPES.INSTALLATION}>Installation</option>
-                  <option value={PROJECT_TYPES.MAINTENANCE}>Maintenance</option>
-                  <option value={PROJECT_TYPES.REPAIR}>Repair</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Customer</label>
-                <select
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
-                  value={newProject.customer_id}
-                  onChange={(e) => setNewProject({ ...newProject, customer_id: e.target.value })}
-                  required
-                >
-                  <option value="">Select Customer</option>
-                  {customers.map((customer) => (
-                    <option key={customer.id} value={customer.id}>{customer.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Quotation #</label>
-                <input
-                  type="text"
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
-                  value={newProject.quotation_number}
-                  onChange={(e) => setNewProject({ ...newProject, quotation_number: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Location</label>
-                <input
-                  type="text"
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
-                  value={newProject.location}
-                  onChange={(e) => setNewProject({ ...newProject, location: e.target.value })}
-                />
-              </div>
-              <div className="flex gap-4">
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700">Received At</label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Customer</label>
+                  <select
+                    required
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                    value={newProject.customer_id}
+                    onChange={(e) => setNewProject({ ...newProject, customer_id: e.target.value })}
+                  >
+                    <option value="">Select Customer</option>
+                    {customers.map(customer => (
+                      <option key={customer.id} value={customer.id}>
+                        {customer.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Type</label>
+                  <select
+                    required
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                    value={newProject.type}
+                    onChange={(e) => setNewProject({ ...newProject, type: e.target.value })}
+                  >
+                    {Object.values(PROJECT_TYPES).map(type => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Quotation Number</label>
+                  <input
+                    type="text"
+                    required
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                    value={newProject.quotation_number}
+                    onChange={(e) => setNewProject({ ...newProject, quotation_number: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Location</label>
+                  <input
+                    type="text"
+                    required
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                    value={newProject.location}
+                    onChange={(e) => setNewProject({ ...newProject, location: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Total Amount</label>
+                  <input
+                    type="number"
+                    required
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                    value={newProject.total_amount}
+                    onChange={(e) => setNewProject({ ...newProject, total_amount: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Paid Amount</label>
+                  <input
+                    type="number"
+                    required
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                    value={newProject.paid_amount}
+                    onChange={(e) => setNewProject({ ...newProject, paid_amount: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Received Date</label>
                   <input
                     type="date"
+                    required
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
                     value={newProject.received_at}
                     onChange={(e) => setNewProject({ ...newProject, received_at: e.target.value })}
                   />
                 </div>
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700">Delivered At</label>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Delivery Date</label>
                   <input
                     type="date"
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
@@ -334,50 +378,11 @@ const Projects = () => {
                   />
                 </div>
               </div>
-              <div className="flex gap-4">
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700">Work Duration</label>
-                  <input
-                    type="text"
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
-                    value={newProject.work_duration}
-                    onChange={(e) => setNewProject({ ...newProject, work_duration: e.target.value })}
-                  />
-                </div>
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700">Total Amount</label>
-                  <input
-                    type="number"
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
-                    value={newProject.total_amount}
-                    onChange={(e) => setNewProject({ ...newProject, total_amount: e.target.value })}
-                  />
-                </div>
-              </div>
-              <div className="flex gap-4">
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700">Paid Amount</label>
-                  <input
-                    type="number"
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
-                    value={newProject.paid_amount}
-                    onChange={(e) => setNewProject({ ...newProject, paid_amount: e.target.value })}
-                  />
-                </div>
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700">Remaining Amount</label>
-                  <input
-                    type="number"
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
-                    value={newProject.remaining_amount}
-                    onChange={(e) => setNewProject({ ...newProject, remaining_amount: e.target.value })}
-                  />
-                </div>
-              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Notes</label>
                 <textarea
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                  rows="3"
                   value={newProject.notes}
                   onChange={(e) => setNewProject({ ...newProject, notes: e.target.value })}
                 />
@@ -388,13 +393,13 @@ const Projects = () => {
                   onClick={() => setShowCreateModal(false)}
                   className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
                 >
-                  {t("common.cancel")}
+                  Cancel
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary-dark"
                 >
-                  {t("common.save")}
+                  Create Project
                 </button>
               </div>
             </form>
@@ -402,77 +407,94 @@ const Projects = () => {
         </div>
       )}
 
+      {/* Edit Project Modal */}
       {showEditModal && editProject && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-lg w-full">
-            <h2 className="text-lg font-medium mb-4">{t("projects.edit")}</h2>
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <h2 className="text-lg font-medium mb-4">Edit Project</h2>
             <form onSubmit={handleEditProject} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Name</label>
-                <input
-                  type="text"
-                  required
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
-                  value={editProject.name}
-                  onChange={(e) => setEditProject({ ...editProject, name: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Type</label>
-                <select
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
-                  value={editProject.type}
-                  onChange={(e) => setEditProject({ ...editProject, type: e.target.value })}
-                >
-                  <option value={PROJECT_TYPES.INSTALLATION}>Installation</option>
-                  <option value={PROJECT_TYPES.MAINTENANCE}>Maintenance</option>
-                  <option value={PROJECT_TYPES.REPAIR}>Repair</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Customer</label>
-                <select
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
-                  value={editProject.customer_id}
-                  onChange={(e) => setEditProject({ ...editProject, customer_id: e.target.value })}
-                  required
-                >
-                  <option value="">Select Customer</option>
-                  {customers.map((customer) => (
-                    <option key={customer.id} value={customer.id}>{customer.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Quotation #</label>
-                <input
-                  type="text"
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
-                  value={editProject.quotation_number}
-                  onChange={(e) => setEditProject({ ...editProject, quotation_number: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Location</label>
-                <input
-                  type="text"
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
-                  value={editProject.location}
-                  onChange={(e) => setEditProject({ ...editProject, location: e.target.value })}
-                />
-              </div>
-              <div className="flex gap-4">
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700">Received At</label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Customer</label>
+                  <select
+                    required
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                    value={editProject.customer_id}
+                    onChange={(e) => setEditProject({ ...editProject, customer_id: e.target.value })}
+                  >
+                    <option value="">Select Customer</option>
+                    {customers.map(customer => (
+                      <option key={customer.id} value={customer.id}>
+                        {customer.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Type</label>
+                  <select
+                    required
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                    value={editProject.type}
+                    onChange={(e) => setEditProject({ ...editProject, type: e.target.value })}
+                  >
+                    {Object.values(PROJECT_TYPES).map(type => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Quotation Number</label>
+                  <input
+                    type="text"
+                    required
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                    value={editProject.quotation_number}
+                    onChange={(e) => setEditProject({ ...editProject, quotation_number: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Location</label>
+                  <input
+                    type="text"
+                    required
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                    value={editProject.location}
+                    onChange={(e) => setEditProject({ ...editProject, location: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Total Amount</label>
+                  <input
+                    type="number"
+                    required
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                    value={editProject.total_amount}
+                    onChange={(e) => setEditProject({ ...editProject, total_amount: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Paid Amount</label>
+                  <input
+                    type="number"
+                    required
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                    value={editProject.paid_amount}
+                    onChange={(e) => setEditProject({ ...editProject, paid_amount: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Received Date</label>
                   <input
                     type="date"
+                    required
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
                     value={editProject.received_at}
                     onChange={(e) => setEditProject({ ...editProject, received_at: e.target.value })}
                   />
                 </div>
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700">Delivered At</label>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Delivery Date</label>
                   <input
                     type="date"
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
@@ -481,50 +503,11 @@ const Projects = () => {
                   />
                 </div>
               </div>
-              <div className="flex gap-4">
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700">Work Duration</label>
-                  <input
-                    type="text"
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
-                    value={editProject.work_duration}
-                    onChange={(e) => setEditProject({ ...editProject, work_duration: e.target.value })}
-                  />
-                </div>
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700">Total Amount</label>
-                  <input
-                    type="number"
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
-                    value={editProject.total_amount}
-                    onChange={(e) => setEditProject({ ...editProject, total_amount: e.target.value })}
-                  />
-                </div>
-              </div>
-              <div className="flex gap-4">
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700">Paid Amount</label>
-                  <input
-                    type="number"
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
-                    value={editProject.paid_amount}
-                    onChange={(e) => setEditProject({ ...editProject, paid_amount: e.target.value })}
-                  />
-                </div>
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700">Remaining Amount</label>
-                  <input
-                    type="number"
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
-                    value={editProject.remaining_amount}
-                    onChange={(e) => setEditProject({ ...editProject, remaining_amount: e.target.value })}
-                  />
-                </div>
-              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Notes</label>
                 <textarea
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                  rows="3"
                   value={editProject.notes}
                   onChange={(e) => setEditProject({ ...editProject, notes: e.target.value })}
                 />
@@ -535,13 +518,13 @@ const Projects = () => {
                   onClick={() => setShowEditModal(false)}
                   className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
                 >
-                  {t("common.cancel")}
+                  Cancel
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary-dark"
                 >
-                  {t("common.save")}
+                  Save Changes
                 </button>
               </div>
             </form>
@@ -549,25 +532,28 @@ const Projects = () => {
         </div>
       )}
 
+      {/* Delete Confirmation Modal */}
       {showDeleteModal && deleteProject && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full">
             <h2 className="text-lg font-medium mb-4">Delete Project</h2>
-            <p>Are you sure you want to delete <span className="font-bold">{deleteProject.name}</span>?</p>
-            <div className="mt-6 flex justify-end space-x-3">
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete this project? This action cannot be undone.
+            </p>
+            <div className="flex justify-end space-x-3">
               <button
                 type="button"
                 onClick={() => setShowDeleteModal(false)}
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
               >
-                {t("common.cancel")}
+                Cancel
               </button>
               <button
                 type="button"
                 onClick={handleDeleteProject}
                 className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
               >
-                {t("common.delete")}
+                Delete
               </button>
             </div>
           </div>

@@ -5,6 +5,8 @@ import Layout from './components/Layout';
 import Login from './pages/Login';
 import Projects from './pages/Projects';
 import Users from './pages/Users';
+import Customers from './pages/Customers';
+import ProjectDetails from './pages/ProjectDetails';
 import { authService } from './services/auth';
 import { USER_ROLES } from './services/supabase';
 import { Toaster } from 'react-hot-toast';
@@ -60,7 +62,8 @@ function App() {
           >
             <Route index element={<Navigate to="/projects" replace />} />
             <Route path="projects" element={<Projects />} />
-            <Route path="customers" element={<div className='text-2xl text-red-500 font-bold text-center'>Customers Page</div>} />
+            <Route path="projects/:id" element={<ProjectDetails />} />
+            <Route path="customers" element={<Customers />} />
             <Route path="teams" element={<div>Teams Page</div>} />
             <Route path="materials" element={<div>Materials Page</div>} />
             <Route
