@@ -1,19 +1,31 @@
-# Project Management System
+# BlackDiamond Project Management System
 
-A modern project management system for construction and maintenance services, built with HTML, CSS, JavaScript, and Supabase.
+A modern project management system built with React, Tailwind CSS, and Supabase.
 
 ## Features
 
-- Project and maintenance service management
-- Real-time data synchronization with Supabase
-- Modern and responsive UI
-- File upload support for quotations
-- Search functionality
-- Arabic language support
+- 🔐 Authentication with Supabase
+- 🌐 Bilingual support (Arabic/English)
+- 📱 Responsive design
+- 🎨 Modern UI with Tailwind CSS
+- 📊 Project management
+- 👥 Customer management
+- 🛠️ Installation teams management
+- 📦 Materials tracking
+- 📋 Project sections checklist
+
+## Tech Stack
+
+- React 18
+- Vite
+- Tailwind CSS
+- Supabase
+- React Router
+- i18next
 
 ## Prerequisites
 
-- Node.js (v14 or higher)
+- Node.js 16 or higher
 - npm or yarn
 - Supabase account
 
@@ -22,8 +34,8 @@ A modern project management system for construction and maintenance services, bu
 1. Clone the repository:
 
 ```bash
-git clone <repository-url>
-cd <project-directory>
+git clone https://github.com/yourusername/blackdiamond.git
+cd blackdiamond
 ```
 
 2. Install dependencies:
@@ -32,14 +44,12 @@ cd <project-directory>
 npm install
 ```
 
-3. Create a `.env` file in the root directory with your Supabase credentials:
+3. Create a `.env` file in the root directory:
 
-```env
-VITE_SUPABASE_URL=your_supabase_url_here
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key_here
 ```
-
-You can find these credentials in your Supabase project settings under Project Settings > API.
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
 
 4. Start the development server:
 
@@ -47,19 +57,19 @@ You can find these credentials in your Supabase project settings under Project S
 npm run dev
 ```
 
+The application will be available at `http://localhost:3001`.
+
 ## Project Structure
 
 ```
-├── src/
-│   ├── assets/
-│   │   └── logo.svg
-│   │   └── main.js
-│   └── styles/
-│       └── main.css
-├── index.html
-├── package.json
-├── vite.config.js
-└── README.md
+src/
+├── components/          # React components
+├── pages/              # Page components
+├── services/           # API services
+├── App.jsx            # Main App component
+├── main.jsx           # Entry point
+├── i18n.js            # Translations
+└── index.css          # Global styles
 ```
 
 ## Development
@@ -68,13 +78,6 @@ npm run dev
 - `npm run build` - Build for production
 - `npm run preview` - Preview production build
 - `npm run lint` - Run ESLint
-- `npm run format` - Format code with Prettier
-
-## Deployment
-
-The project is configured for deployment on Vercel. Simply connect your GitHub repository to Vercel and it will automatically deploy your application.
-
-Make sure to add your environment variables in the Vercel project settings.
 
 ## Contributing
 
@@ -86,4 +89,4 @@ Make sure to add your environment variables in the Vercel project settings.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
