@@ -1,16 +1,21 @@
 import { useTranslation } from "react-i18next";
-import { Link, Outlet } from "react-router-dom";
+import { Link, Outlet, useNavigate } from "react-router-dom";
 import LanguageSwitcher from "./LanguageSwitcher";
 import { authService } from "../services/auth";
 import { USER_ROLES } from "../services/supabase";
 
 const Layout = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const user = authService.getUser();
   const profile = authService.getUserProfile();
   const isAdmin = profile?.role === USER_ROLES.ADMIN;
 
-  
+  const handleLogout = async () => {
+    await authService.signOut();
+    navigate("/login");
+  };
+
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Navigation */}
@@ -61,6 +66,12 @@ const Layout = () => {
                 {user?.email?.split("@")[0]}
               </span>
               <LanguageSwitcher />
+              <button
+                onClick={handleLogout}
+                className="ml-4 px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition"
+              >
+                {t("auth.logout")}
+              </button>
             </div>
           </div>
         </div>
