@@ -192,9 +192,10 @@ const Projects = () => {
     );
   }
 
+  // Responsive: Card layout for mobile, table for desktop
   return (
-    <div className="bg-white shadow rounded-lg p-8 max-w-7xl mx-auto mt-8">
-      <div className="flex justify-between items-center mb-8">
+    <div className="bg-white shadow rounded-lg p-4 sm:p-8 max-w-7xl mx-auto mt-8">
+      <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
         <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
           <span className="text-primary">{t("projects.title")}</span>
         </h1>
@@ -207,10 +208,10 @@ const Projects = () => {
       </div>
 
       {/* Filters */}
-      <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="mb-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
         <input
           type="text"
-          placeholder="Search by quotation, location, or customer..."
+          placeholder={t('filters.searchPlaceholder')}
           className="border rounded-lg px-4 py-2"
           value={filters.search}
           onChange={(e) => handleFilterChange('search', e.target.value)}
@@ -220,7 +221,7 @@ const Projects = () => {
           value={filters.type}
           onChange={(e) => handleFilterChange('type', e.target.value)}
         >
-          <option value="">All Types</option>
+          <option value="">{t('filters.allTypes')}</option>
           {Object.values(PROJECT_TYPES).map(type => (
             <option key={type} value={type}>{type}</option>
           ))}
@@ -230,43 +231,63 @@ const Projects = () => {
           value={filters.status}
           onChange={(e) => handleFilterChange('status', e.target.value)}
         >
-          <option value="">All Status</option>
-          <option value="pending">Pending</option>
-          <option value="in_progress">In Progress</option>
-          <option value="completed">Completed</option>
+          <option value="">{t('filters.allStatuses')}</option>
+          <option value="pending">{t('projects.status.pending')}</option>
+          <option value="in_progress">{t('projects.status.in_progress')}</option>
+          <option value="completed">{t('projects.status.completed')}</option>
         </select>
       </div>
 
-      {/* Projects Table */}
-      <div className="overflow-x-auto rounded-lg shadow">
+      {/* Mobile: Card layout */}
+      <div className="block md:hidden">
+        <div className="grid grid-cols-1 gap-4">
+          {filteredProjects.map(project => (
+            <div key={project.id} className="bg-gray-50 rounded-xl shadow p-4 flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-lg text-primary">{project.quotation_number}</span>
+                <span className={`px-2 py-1 rounded-full text-xs font-bold capitalize ${project.type === 'installation' ? 'bg-blue-100 text-blue-800' : project.type === 'maintenance' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}`}>{project.type}</span>
+              </div>
+              <div className="text-gray-700 text-sm">
+                {t('projects.customer')}: <span className="font-medium">{project.customer?.name}</span>
+              </div>
+              <button
+                className="mt-2 bg-primary text-white rounded px-4 py-2 font-semibold shadow hover:bg-primary-dark transition"
+                onClick={() => navigate(`/projects/${project.id}`)}
+              >
+                {t('common.view')}
+              </button>
+            </div>
+          ))}
+          {filteredProjects.length === 0 && (
+            <div className="text-center text-gray-500 py-8">{t('common.noResults')}</div>
+          )}
+        </div>
+      </div>
+
+      {/* Desktop: Table layout */}
+      <div className="hidden md:block overflow-x-auto rounded-lg shadow">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-100">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Quotation #</th>
-              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Type</th>
-              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Customer</th>
-              <th className="px-6 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">Actions</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">{t('projects.quotationNumber')}</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">{t('projects.type')}</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">{t('projects.customer')}</th>
+              <th className="px-6 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">{t('common.view')}</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {filteredProjects.map(project => (
               <tr key={project.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
-                  {project.quotation_number}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {project.type}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {project.customer?.name}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium flex gap-2 justify-center">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">{project.quotation_number}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{project.type}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{project.customer?.name}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                   <button
                     className="text-primary hover:text-primary-dark p-1 rounded hover:bg-primary-50"
-                    title="Show Details"
+                    title={t('common.view')}
                     onClick={() => navigate(`/projects/${project.id}`)}
                   >
-                    Show Details
+                    {t('common.view')}
                   </button>
                 </td>
               </tr>
@@ -274,7 +295,7 @@ const Projects = () => {
             {filteredProjects.length === 0 && (
               <tr>
                 <td colSpan="4" className="px-6 py-4 text-center text-sm text-gray-500">
-                  No projects found
+                  {t('common.noResults')}
                 </td>
               </tr>
             )}
