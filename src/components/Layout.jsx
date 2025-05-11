@@ -22,8 +22,6 @@ const Layout = () => {
   const navLinks = [
     { to: "/projects", label: t("nav.projects") },
     { to: "/customers", label: t("nav.customers") },
-    { to: "/teams", label: t("nav.teams") },
-    { to: "/materials", label: t("nav.materials") },
   ];
   if (isAdmin) {
     navLinks.push({ to: "/users", label: t("nav.users") });

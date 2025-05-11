@@ -76,7 +76,6 @@ export const TABLES = {
 export const PROJECT_TYPES = {
   INSTALLATION: "installation",
   MAINTENANCE: "maintenance",
-  REPAIR: "repair",
 };
 
 // User roles

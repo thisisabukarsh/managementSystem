@@ -108,7 +108,7 @@ const Customers = () => {
           onClick={() => setShowCreateModal(true)}
           className="bg-primary text-white px-6 py-2 rounded-lg shadow hover:bg-primary-dark transition"
         >
-          + {t("common.add") || "Add Customer"}
+          + {t("projects.addCustomer")}
         </button>
       </div>
 
@@ -160,7 +160,7 @@ const Customers = () => {
       {showCreateModal && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-lg font-medium mb-4">Add Customer</h2>
+            <h2 className="text-lg font-medium mb-4">{t("projects.addCustomer")}</h2>
             <form onSubmit={handleCreateCustomer} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">Name</label>

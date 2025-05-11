@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { supabase, PROJECT_TYPES, formatCurrency, formatDate } from '../services/supabase';
@@ -17,6 +17,7 @@ const Projects = () => {
     customer_id: "",
     quotation_number: "",
     location: "",
+    location_link: "",
     received_at: "",
     delivered_at: "",
     work_duration: "",
@@ -24,6 +25,7 @@ const Projects = () => {
     paid_amount: "",
     remaining_amount: "",
     notes: "",
+    status: "under_design",
   });
   const [filters, setFilters] = useState({
     search: '',
@@ -104,6 +106,7 @@ const Projects = () => {
           customer_id: newProject.customer_id,
           quotation_number: newProject.quotation_number,
           location: newProject.location,
+          location_link: newProject.location_link,
           received_at: newProject.received_at,
           delivered_at: newProject.delivered_at,
           work_duration: newProject.work_duration,
@@ -111,6 +114,7 @@ const Projects = () => {
           paid_amount: parseFloat(newProject.paid_amount) || 0,
           remaining_amount: parseFloat(newProject.remaining_amount) || 0,
           notes: newProject.notes,
+          status: newProject.status,
         }])
         .select();
 
@@ -122,6 +126,7 @@ const Projects = () => {
         customer_id: "",
         quotation_number: "",
         location: "",
+        location_link: "",
         received_at: "",
         delivered_at: "",
         work_duration: "",
@@ -129,6 +134,7 @@ const Projects = () => {
         paid_amount: "",
         remaining_amount: "",
         notes: "",
+        status: "under_design",
       });
       fetchProjects();
     } catch (error) {
@@ -153,6 +159,7 @@ const Projects = () => {
           paid_amount: parseFloat(editProject.paid_amount) || 0,
           remaining_amount: parseFloat(editProject.remaining_amount) || 0,
           notes: editProject.notes,
+          status: editProject.status,
         })
         .eq('id', editProject.id)
         .select();
@@ -223,7 +230,7 @@ const Projects = () => {
         >
           <option value="">{t('filters.allTypes')}</option>
           {Object.values(PROJECT_TYPES).map(type => (
-            <option key={type} value={type}>{type}</option>
+            <option key={type} value={type}>{t(`projects.types.${type}`)}</option>
           ))}
         </select>
         <select
@@ -232,6 +239,7 @@ const Projects = () => {
           onChange={(e) => handleFilterChange('status', e.target.value)}
         >
           <option value="">{t('filters.allStatuses')}</option>
+          <option value="under_design">{t('projects.status.under_design')}</option>
           <option value="pending">{t('projects.status.pending')}</option>
           <option value="in_progress">{t('projects.status.in_progress')}</option>
           <option value="completed">{t('projects.status.completed')}</option>
@@ -305,122 +313,302 @@ const Projects = () => {
 
       {/* Create Project Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <h2 className="text-lg font-medium mb-4">Add New Project</h2>
-            <form onSubmit={handleCreateProject} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Customer</label>
-                  <select
-                    required
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
-                    value={newProject.customer_id}
-                    onChange={(e) => setNewProject({ ...newProject, customer_id: e.target.value })}
-                  >
-                    <option value="">Select Customer</option>
-                    {customers.map(customer => (
-                      <option key={customer.id} value={customer.id}>
-                        {customer.name}
-                      </option>
-                    ))}
-                  </select>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+            {/* Header */}
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="text-primary">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Type</label>
-                  <select
-                    required
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
-                    value={newProject.type}
-                    onChange={(e) => setNewProject({ ...newProject, type: e.target.value })}
-                  >
-                    {Object.values(PROJECT_TYPES).map(type => (
-                      <option key={type} value={type}>{type}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Quotation Number</label>
-                  <input
-                    type="text"
-                    required
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
-                    value={newProject.quotation_number}
-                    onChange={(e) => setNewProject({ ...newProject, quotation_number: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Location</label>
-                  <input
-                    type="text"
-                    required
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
-                    value={newProject.location}
-                    onChange={(e) => setNewProject({ ...newProject, location: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Total Amount</label>
-                  <input
-                    type="number"
-                    required
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
-                    value={newProject.total_amount}
-                    onChange={(e) => setNewProject({ ...newProject, total_amount: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Paid Amount</label>
-                  <input
-                    type="number"
-                    required
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
-                    value={newProject.paid_amount}
-                    onChange={(e) => setNewProject({ ...newProject, paid_amount: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Received Date</label>
-                  <input
-                    type="date"
-                    required
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
-                    value={newProject.received_at}
-                    onChange={(e) => setNewProject({ ...newProject, received_at: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Delivery Date</label>
-                  <input
-                    type="date"
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
-                    value={newProject.delivered_at}
-                    onChange={(e) => setNewProject({ ...newProject, delivered_at: e.target.value })}
-                  />
+                  <h2 className="text-xl font-bold text-gray-900">{t('projects.addNew')}</h2>
+                  <p className="text-sm text-gray-500">{t('projects.addNewDescription')}</p>
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Notes</label>
-                <textarea
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
-                  rows="3"
-                  value={newProject.notes}
-                  onChange={(e) => setNewProject({ ...newProject, notes: e.target.value })}
-                />
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="text-gray-400 hover:text-gray-500 transition-colors"
+              >
+                <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleCreateProject} className="p-6 overflow-y-auto max-h-[calc(90vh-8rem)]">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Status Section */}
+                <div className="md:col-span-2 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('projects.statusLabel') || t('filters.status')}</label>
+                  <select
+                    required
+                    className="w-full rounded-lg border-gray-200 focus:border-primary focus:ring-primary transition-colors"
+                    value={newProject.status || 'under_design'}
+                    onChange={e => setNewProject({ ...newProject, status: e.target.value })}
+                  >
+                    <option value="under_design">{t('projects.status.under_design')}</option>
+                    <option value="pending">{t('projects.status.pending')}</option>
+                    <option value="in_progress">{t('projects.status.in_progress')}</option>
+                    <option value="completed">{t('projects.status.completed')}</option>
+                  </select>
+                </div>
+                {/* Basic Information Section */}
+                <div className="bg-white rounded-xl p-6 border border-gray-100">
+                  <h3 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="text-primary">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    {t('projects.basicInfoSection')}
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Searchable Customer Combobox */}
+                    <div className="relative">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">{t('projects.customer')}</label>
+                      {newProject.customer_id ? (
+                        <div className="flex items-center gap-2 bg-primary/10 rounded-full px-4 py-2 mb-2">
+                          <span className="font-medium text-primary">{customers.find(c => c.id === newProject.customer_id)?.name}</span>
+                          <button
+                            type="button"
+                            className="text-gray-400 hover:text-primary px-1"
+                            onClick={() => setNewProject({ ...newProject, customer_id: '', customerSearch: '' })}
+                            title={t('projects.clear')}
+                            aria-label={t('projects.clear')}
+                          >
+                            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              className="w-full rounded-lg border-gray-200 focus:border-primary focus:ring-primary transition-colors mb-1 bg-gray-50 px-3 py-2"
+                              placeholder={t('projects.selectCustomer')}
+                              value={newProject.customerSearch || ''}
+                              onChange={e => {
+                                setNewProject({ ...newProject, customerSearch: e.target.value, customer_id: '' });
+                              }}
+                              autoComplete="off"
+                            />
+                            {newProject.customerSearch && (
+                              <button
+                                type="button"
+                                className="text-gray-400 hover:text-primary px-2"
+                                onClick={() => setNewProject({ ...newProject, customerSearch: '', customer_id: '' })}
+                                title={t('projects.clear')}
+                                aria-label={t('projects.clear')}
+                              >
+                                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                              </button>
+                            )}
+                          </div>
+                          <div className="absolute z-20 w-full bg-white border border-gray-200 rounded-lg shadow max-h-40 overflow-y-auto mt-1" style={{ display: newProject.customerSearch ? 'block' : 'none' }}>
+                            {customers.filter(c => c.name.toLowerCase().includes((newProject.customerSearch || '').toLowerCase())).map(customer => (
+                              <div
+                                key={customer.id}
+                                className={`px-4 py-2 cursor-pointer hover:bg-primary/10 ${newProject.customer_id === customer.id ? 'bg-primary/10 font-bold' : ''}`}
+                                onClick={() => setNewProject({ ...newProject, customer_id: customer.id, customerSearch: customer.name })}
+                              >
+                                {customer.name}
+                              </div>
+                            ))}
+                            {customers.filter(c => c.name.toLowerCase().includes((newProject.customerSearch || '').toLowerCase())).length === 0 && (
+                              <div className="px-4 py-2 text-gray-400">{t('projects.noCustomerFound')}</div>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">{t('projects.type')}</label>
+                      <select
+                        required
+                        className="w-full rounded-lg border-gray-200 focus:border-primary focus:ring-primary transition-colors"
+                        value={newProject.type}
+                        onChange={(e) => setNewProject({ ...newProject, type: e.target.value })}
+                      >
+                        {Object.values(PROJECT_TYPES).map(type => (
+                          <option key={type} value={type}>{t(`projects.types.${type}`)}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">{t('projects.quotationNumber')}</label>
+                      <input
+                        type="text"
+                        required
+                        className="w-full rounded-lg border-gray-200 focus:border-primary focus:ring-primary transition-colors"
+                        value={newProject.quotation_number}
+                        onChange={(e) => setNewProject({ ...newProject, quotation_number: e.target.value })}
+                        placeholder={t('projects.quotationNumberPlaceholder')}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">{t('projects.location')}</label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          required
+                          className="w-full rounded-lg border-gray-200 focus:border-primary focus:ring-primary transition-colors pr-10"
+                          value={newProject.location}
+                          onChange={(e) => setNewProject({ ...newProject, location: e.target.value })}
+                          placeholder={t('projects.locationPlaceholder')}
+                        />
+                        <button
+                          type="button"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-primary transition-colors"
+                          onClick={() => {
+                            const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(newProject.location)}`;
+                            window.open(mapsUrl, '_blank');
+                          }}
+                        >
+                          <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.243-4.243a8 8 0 1111.314 0z" />
+                            <circle cx="12" cy="10" r="3" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">{t('projects.locationLink')}</label>
+                      <input
+                        type="url"
+                        className="w-full rounded-lg border-gray-200 focus:border-primary focus:ring-primary transition-colors"
+                        value={newProject.location_link}
+                        onChange={(e) => setNewProject({ ...newProject, location_link: e.target.value })}
+                        placeholder="https://maps.google.com/..."
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Timeline Section */}
+                <div className="bg-white rounded-xl p-6 border border-gray-100">
+                  <h3 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="text-primary">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    {t('projects.timelineSection')}
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">{t('projects.receivedAt')}</label>
+                      <input
+                        type="date"
+                        required
+                        className="w-full rounded-lg border-gray-200 focus:border-primary focus:ring-primary transition-colors"
+                        value={newProject.received_at}
+                        onChange={(e) => setNewProject({ ...newProject, received_at: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">{t('projects.deliveredAt')}</label>
+                      <input
+                        type="date"
+                        className="w-full rounded-lg border-gray-200 focus:border-primary focus:ring-primary transition-colors"
+                        value={newProject.delivered_at}
+                        onChange={(e) => setNewProject({ ...newProject, delivered_at: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Financial Information Section */}
+                <div className="bg-white rounded-xl p-6 border border-gray-100">
+                  <h3 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="text-primary">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    {t('projects.financialSection')}
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">{t('projects.totalAmount')}</label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          required
+                          min="0"
+                          step="0.01"
+                          className="w-full rounded-lg border-gray-200 focus:border-primary focus:ring-primary transition-colors pl-8"
+                          value={newProject.total_amount}
+                          onChange={(e) => setNewProject({ ...newProject, total_amount: e.target.value })}
+                        />
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">AED</span>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">{t('projects.paidAmount')}</label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          required
+                          min="0"
+                          step="0.01"
+                          className="w-full rounded-lg border-gray-200 focus:border-primary focus:ring-primary transition-colors pl-8"
+                          value={newProject.paid_amount}
+                          onChange={(e) => setNewProject({ ...newProject, paid_amount: e.target.value })}
+                        />
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">AED</span>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">{t('projects.remainingAmount')}</label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          readOnly
+                          className="w-full rounded-lg border-gray-200 bg-gray-50 pl-8"
+                          value={parseFloat(newProject.total_amount || 0) - parseFloat(newProject.paid_amount || 0)}
+                        />
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">AED</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Additional Information Section */}
+                <div className="bg-white rounded-xl p-6 border border-gray-100">
+                  <h3 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="text-primary">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                    </svg>
+                    {t('projects.additionalSection')}
+                  </h3>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('projects.notes')}</label>
+                    <textarea
+                      className="w-full rounded-lg border-gray-200 focus:border-primary focus:ring-primary transition-colors"
+                      rows="4"
+                      value={newProject.notes}
+                      onChange={(e) => setNewProject({ ...newProject, notes: e.target.value })}
+                      placeholder={t('projects.notesPlaceholder')}
+                    />
+                  </div>
+                </div>
               </div>
-              <div className="mt-6 flex justify-end space-x-3">
+
+              {/* Form Actions */}
+              <div className="mt-8 flex justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary-dark"
+                  className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary-dark transition-colors flex items-center gap-2"
                 >
-                  Create Project
+                  <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  {t('common.create')}
                 </button>
               </div>
             </form>
