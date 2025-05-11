@@ -11,6 +11,13 @@ const typeColors = {
   repair: 'bg-green-100 text-green-800',
 };
 
+const statusColors = {
+  under_design: 'bg-gray-200 text-gray-700',
+  pending: 'bg-yellow-100 text-yellow-800',
+  in_progress: 'bg-blue-100 text-blue-800',
+  completed: 'bg-green-100 text-green-800',
+};
+
 const TimelineItem = ({ icon, label, value, naLabel }) => (
   <div className="flex items-start gap-3 mb-4">
     <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white">
@@ -88,13 +95,21 @@ const ProjectDetails = () => {
   };
 
   const handleDelete = async () => {
-    if (!window.confirm(t('common.delete') + '?')) return;
-    const { error } = await supabase.from('projects').delete().eq('id', project.id);
-    if (error) {
-      toast.error(t('common.error'));
-    } else {
-      toast.success(t('common.success'));
+    if (!window.confirm(t('projects.deleteConfirm'))) return;
+    
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .delete()
+        .eq('id', project.id);
+
+      if (error) throw error;
+
+      toast.success(t('projects.deleteSuccess'));
       navigate('/projects');
+    } catch (error) {
+      console.error('Error deleting project:', error);
+      toast.error(t('projects.deleteError'));
     }
   };
 
@@ -146,6 +161,9 @@ const ProjectDetails = () => {
             <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="text-primary"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2a2 2 0 012-2h2a2 2 0 012 2v2m-6 0a2 2 0 01-2-2V7a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2m-6 0h6" /></svg>
             <h2 className="text-2xl font-bold">{t('projects.title')}</h2>
             <span className={`ml-auto px-3 py-1 rounded-full text-xs font-bold capitalize ${typeColors[project.type] || 'bg-gray-200 text-gray-700'}`}>{t(`projects.types.${project.type}`)}</span>
+            {project.status && (
+              <span className={`ml-2 px-3 py-1 rounded-full text-xs font-bold capitalize ${statusColors[project.status] || 'bg-gray-200 text-gray-700'}`}>{t(`projects.status.${project.status}`)}</span>
+            )}
             {isOverdue && <span className="ml-2 px-2 py-1 rounded-full bg-red-100 text-red-700 text-xs font-bold">{t('projects.status.in_progress')}</span>}
           </div>
           {/* Quotation number and copy icon aligned */}
@@ -171,16 +189,16 @@ const ProjectDetails = () => {
             <>
               <div className="mb-4">
                 <div className="text-gray-500 text-xs font-semibold uppercase mb-1">{t('projects.location')}</div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col gap-2">
                   <span className="text-base text-gray-900">{project.location}</span>
                   {project.location_link && (
-                    <button
-                      className="text-primary underline hover:text-primary-dark text-sm font-medium flex items-center gap-1"
-                      onClick={openLocation}
-                    >
-                      <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.243-4.243a8 8 0 1111.314 0z" /><circle cx="12" cy="10" r="3" /></svg>
-                      {t('common.view')}
-                    </button>
+                      <button
+                        className="text-primary underline hover:text-primary-dark text-sm font-medium flex items-center gap-1"
+                        onClick={openLocation}
+                      >
+                        <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.243-4.243a8 8 0 1111.314 0z" /><circle cx="12" cy="10" r="3" /></svg>
+                        {t('common.view')}
+                      </button>
                   )}
                 </div>
               </div>
@@ -188,6 +206,18 @@ const ProjectDetails = () => {
                 <div className="text-gray-500 text-xs font-semibold uppercase mb-1">{t('projects.notes')}</div>
                 <div className="text-base text-gray-900 whitespace-pre-line">{project.notes || <span className='text-gray-400'>N/A</span>}</div>
               </div>
+              {project.created_by_user_id && (
+                <div className="mb-4">
+                  <div className="text-gray-500 text-xs font-semibold uppercase mb-1">{t('projects.createdBy')}</div>
+                  <div className="text-base text-gray-900 break-all">{project.created_by_user_id}</div>
+                </div>
+              )}
+              {project.created_at && (
+                <div className="mb-4">
+                  <div className="text-gray-500 text-xs font-semibold uppercase mb-1">{t('projects.createdAt')}</div>
+                  <div className="text-base text-gray-900">{new Date(project.created_at).toLocaleString(i18n.language === 'ar' ? 'ar-EG' : 'en-US')}</div>
+                </div>
+              )}
             </>
           )}
           {showAmounts && (
@@ -209,14 +239,14 @@ const ProjectDetails = () => {
           {role === 'admin' && (
             <div className="flex gap-4 mt-10">
               <button
-                className="bg-primary text-white px-5 py-2 rounded-lg hover:bg-primary-dark shadow flex items-center gap-2"
+                className="bg-primary text-white px-5 py-2 rounded-lg hover:bg-primary-dark shadow flex items-center gap-2 transition-colors duration-200"
                 onClick={handleEdit}
               >
                 <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 11l6 6M3 21h6l11-11a2.828 2.828 0 00-4-4L5 17v4z" /></svg>
                 {t('common.edit')}
               </button>
               <button
-                className="bg-red-600 text-white px-5 py-2 rounded-lg hover:bg-red-700 shadow flex items-center gap-2"
+                className="bg-red-600 text-white px-5 py-2 rounded-lg hover:bg-red-700 shadow flex items-center gap-2 transition-colors duration-200"
                 onClick={handleDelete}
               >
                 <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
