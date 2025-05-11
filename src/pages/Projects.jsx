@@ -1,8 +1,27 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { supabase, PROJECT_TYPES, formatCurrency, formatDate } from '../services/supabase';
 import toast from 'react-hot-toast';
+
+const FIXED_MATERIALS = [
+  { partno: "40001", description: "18MM HIGH GLOSS WHITE" },
+  { partno: "40002", description: "18MM HIGH GLOSS BLACK" },
+  { partno: "", description: "PROFILE ( ? ) DOI  MENTION HERE" },
+  { partno: "", description: "RGB LIGHTS ( ? ) DOI  MENTION HERE" },
+  { partno: "", description: "SINGLE LED ( ? ) DOI  MENTION HERE" },
+  { partno: "", description: "POWER SUPPLY ( ? ) DOI  MENTION HERE" },
+  { partno: "30001", description: "CONTROLLER" },
+  { partno: "", description: "PANNEL ( ? ) MENTION HERE" },
+  { partno: "021", description: "DRAWER SLIDE X20" },
+  { partno: "", description: "CABINET DOOR MAGNETIC CATCHER ( COLOR )" },
+  { partno: "08", description: "HINGES" },
+  { partno: "04", description: "EXTENTION SOCKET" },
+  { partno: "02", description: "PLUG" },
+  { partno: "60003", description: "POWER SUPPLY WIRE 3C*1.5" },
+  { partno: "60002", description: "12V RED&BLACK WIRE" },
+  { partno: "60006", description: "4 GRE RGB WIRE" }
+];
 
 const Projects = () => {
   const { t, i18n } = useTranslation();
@@ -36,6 +55,8 @@ const Projects = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [editProject, setEditProject] = useState(null);
   const [deleteProject, setDeleteProject] = useState(null);
+  const [materials, setMaterials] = useState([{ description: '', quantity: '', partno: '' }]);
+  const [installers, setInstallers] = useState([{ installer_name: '' }]);
 
   useEffect(() => {
     fetchProjects();
@@ -96,8 +117,26 @@ const Projects = () => {
     return matchesSearch && matchesType && matchesStatus;
   });
 
+  const handleAddMaterial = () => setMaterials([...materials, { description: '', quantity: '', partno: '' }]);
+  const handleRemoveMaterial = (idx) => setMaterials(materials.filter((_, i) => i !== idx));
+  const handleMaterialChange = (idx, key, value) => setMaterials(materials.map((mat, i) => i === idx ? { ...mat, [key]: value } : mat));
+  const handleAddInstaller = () => setInstallers([...installers, { installer_name: '' }]);
+  const handleRemoveInstaller = (idx) => setInstallers(installers.filter((_, i) => i !== idx));
+  const handleInstallerChange = (idx, value) => setInstallers(installers.map((inst, i) => i === idx ? { installer_name: value } : inst));
+
   const handleCreateProject = async (e) => {
     e.preventDefault();
+    // Only block if a row is half-filled (description without quantity, or quantity without description)
+    const invalidMaterial = materials.some(m => {
+      const hasDescription = m.description && m.description.trim() !== '';
+      const hasQuantity = m.quantity && String(m.quantity).trim() !== '' && Number(m.quantity) > 0;
+      // Block if only one is filled
+      return (hasDescription && !hasQuantity) || (!hasDescription && hasQuantity);
+    });
+    if (invalidMaterial) {
+      toast.error('Please fill in all material fields (name and quantity) or remove empty rows.');
+      return;
+    }
     try {
       const { data, error } = await supabase
         .from('projects')
@@ -119,6 +158,20 @@ const Projects = () => {
         .select();
 
       if (error) throw error;
+      const projectId = data[0].id;
+      for (const mat of materials.filter(m => m.description && Number(m.quantity) > 0)) {
+        const { error: matError } = await supabase.from('materials').insert([{ material_name: mat.description, quantity: mat.quantity, partno: mat.partno, project_id: projectId }]);
+        if (matError) {
+          toast.error('Error adding material: ' + matError.message);
+        }
+      }
+      // Insert installers
+      for (const inst of installers.filter(i => i.installer_name)) {
+        const { error: instError } = await supabase.from('installationteams').insert([{ installer_name: inst.installer_name, project_id: projectId }]);
+        if (instError) {
+          toast.error('Error adding installer: ' + instError.message);
+        }
+      }
       toast.success("Project created successfully!");
       setShowCreateModal(false);
       setNewProject({
@@ -136,6 +189,8 @@ const Projects = () => {
         notes: "",
         status: "under_design",
       });
+      setMaterials([{ description: '', quantity: '', partno: '' }]);
+      setInstallers([{ installer_name: '' }]);
       fetchProjects();
     } catch (error) {
       toast.error("Error creating project: " + error.message);
@@ -729,6 +784,118 @@ const Projects = () => {
                       placeholder={t('projects.notesPlaceholder')}
                     />
                   </div>
+                </div>
+
+                {/* Materials Section - Card Selector */}
+                <div className="md:col-span-2 bg-white rounded-xl p-6 border border-gray-100 mt-6">
+                  <h3 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="text-primary">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V7a2 2 0 00-2-2H6a2 2 0 00-2 2v6" />
+                    </svg>
+                    {t('projects.materialsSection', 'Materials')}
+                  </h3>
+                  {/* Material Cards Grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-6">
+                    {FIXED_MATERIALS.map((mat, idx) => {
+                      const alreadySelected = materials.some(m => m.description === mat.description);
+                      return (
+                        <button
+                          key={idx}
+                          type="button"
+                          className={`border rounded-lg p-3 flex flex-col items-center shadow-sm transition hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary/50 ${alreadySelected ? 'bg-gray-100 opacity-60 cursor-not-allowed' : 'bg-white hover:bg-primary/10'}`}
+                          onClick={() => {
+                            if (!alreadySelected) setMaterials([...materials, { ...mat, quantity: '' }]);
+                          }}
+                          disabled={alreadySelected}
+                        >
+                          <span className="font-mono text-xs text-gray-500 mb-1">{mat.partno || '-'}</span>
+                          <span className="font-semibold text-sm text-center">{mat.description}</span>
+                          {alreadySelected && <span className="mt-2 text-xs text-primary font-bold">{t('common.added', 'Added')}</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {/* Selected Materials Table/List */}
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm">
+                      <thead>
+                        <tr className="text-gray-500">
+                          <th className="px-2 py-1 text-left">{t('projects.materialName', 'Material')}</th>
+                          <th className="px-2 py-1 text-left">{t('projects.partno', 'Part No.')}</th>
+                          <th className="px-2 py-1 text-left">{t('projects.quantity', 'Qty')}</th>
+                          <th></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {materials.map((mat, idx) => (
+                          <tr key={idx} className="border-b last:border-0">
+                            <td className="px-2 py-1">
+                              <input
+                                type="text"
+                                className="input"
+                                value={mat.description}
+                                onChange={e => handleMaterialChange(idx, 'description', e.target.value)}
+                                placeholder={t('projects.materialName', 'Material')}
+                              />
+                            </td>
+                            <td className="px-2 py-1">
+                              <input
+                                type="text"
+                                className="input"
+                                value={mat.partno}
+                                onChange={e => handleMaterialChange(idx, 'partno', e.target.value)}
+                                placeholder={t('projects.partno', 'Part No.')}
+                              />
+                            </td>
+                            <td className="px-2 py-1">
+                              <input
+                                type="number"
+                                className="input"
+                                value={mat.quantity}
+                                onChange={e => handleMaterialChange(idx, 'quantity', e.target.value)}
+                                placeholder={t('projects.quantity', 'Qty')}
+                                min="1"
+                              />
+                            </td>
+                            <td className="px-2 py-1">
+                              <button
+                                type="button"
+                                className="text-red-500 ml-2 px-2 py-1 rounded hover:bg-red-50 transition"
+                                onClick={() => handleRemoveMaterial(idx)}
+                                title={t('common.delete')}
+                                aria-label={t('common.delete')}
+                              >
+                                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <button
+                    type="button"
+                    className="mt-3 text-primary font-medium"
+                    onClick={() => setMaterials([...materials, { description: '', partno: '', quantity: '' }])}
+                  >
+                    {t('projects.addCustomMaterial', 'Add Custom Material')}
+                  </button>
+                </div>
+                {/* Installers Section */}
+                <div className="md:col-span-2 bg-white rounded-xl p-6 border border-gray-100 mt-6">
+                  <h3 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="text-primary">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 15c2.5 0 4.847.655 6.879 1.804M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    {t('projects.installersSection', 'Installers')}
+                  </h3>
+                  {installers.map((inst, idx) => (
+                    <div key={idx} className="flex gap-2 mb-2">
+                      <input type="text" className="input" placeholder={t('projects.installerName', 'Installer Name')} value={inst.installer_name} onChange={(e) => handleInstallerChange(idx, e.target.value)} />
+                      <button type="button" className="text-red-500 ml-2" onClick={() => handleRemoveInstaller(idx)} title={t('common.delete')}>&times;</button>
+                    </div>
+                  ))}
+                  <button type="button" className="mt-2 text-primary font-medium" onClick={handleAddInstaller}>{t('projects.addInstaller', 'Add Installer')}</button>
                 </div>
               </div>
 

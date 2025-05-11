@@ -79,6 +79,8 @@ export default {
     currency: "AED",
     quotationNumberPlaceholder: "e.g., 12345 or Q-2024-01",
     addNewDescription: "Fill in the details below to create a new project.",
+    materialsSection: "Materials",
+    installersSection: "Installers",
   },
   filters: {
     search: "Search",

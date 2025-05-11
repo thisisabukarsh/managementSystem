@@ -75,6 +75,8 @@ export default {
     currency: "د.إ",
     quotationNumberPlaceholder: "مثال: 12345 أو Q-2024-01",
     addNewDescription: "يرجى تعبئة التفاصيل أدناه لإنشاء مشروع جديد.",
+    materialsSection: "المواد",
+    installersSection: "الفنيون",
   },
   filters: {
     search: "بحث",

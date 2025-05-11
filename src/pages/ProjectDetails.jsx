@@ -54,6 +54,8 @@ const ProjectDetails = () => {
   const [error, setError] = useState('');
   const [role, setRole] = useState('user');
   const [copied, setCopied] = useState({ quotation: false, phone: false });
+  const [materials, setMaterials] = useState([]);
+  const [installers, setInstallers] = useState([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -82,6 +84,18 @@ const ProjectDetails = () => {
         .select('id, quotation_number')
         .eq('customer_id', data.customer_id);
       setCustomerProjects((custProjects || []).filter(p => p.id !== data.id));
+      // Fetch materials
+      const { data: materialsData } = await supabase
+        .from('materials')
+        .select('*')
+        .eq('project_id', id);
+      setMaterials(materialsData || []);
+      // Fetch installers
+      const { data: installersData } = await supabase
+        .from('installationteams')
+        .select('*')
+        .eq('project_id', id);
+      setInstallers(installersData || []);
       // Get user role from authService
       const profile = authService.getUserProfile();
       setRole(profile?.role || 'user');
@@ -155,8 +169,21 @@ const ProjectDetails = () => {
         {t('nav.projects')}
       </button>
       <div className="flex flex-col md:flex-row gap-8">
-        {/* Project Info Card */}
-        <div className="flex-1 bg-white rounded-2xl shadow-xl p-8 transition-transform hover:scale-[1.01] duration-200">
+        {/* Main Unified Project Card */}
+        <div className="flex-1 bg-white rounded-2xl shadow-xl p-8 transition-transform hover:scale-[1.01] duration-200" id="project-info-card">
+          {/* Print Button */}
+          <div className="flex justify-end mb-2">
+            <button
+              className="text-primary border border-primary px-3 py-1 rounded hover:bg-primary hover:text-white transition"
+              onClick={() => window.print()}
+              title={t('common.print', 'Print')}
+              type="button"
+            >
+              <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="inline-block mr-1"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 9V2h12v7" /><rect width="16" height="13" x="4" y="9" rx="2" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18h12" /></svg>
+              {t('common.print', 'Print')}
+            </button>
+          </div>
+          {/* Header */}
           <div className="flex items-center gap-3 mb-6">
             <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="text-primary"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2a2 2 0 012-2h2a2 2 0 012 2v2m-6 0a2 2 0 01-2-2V7a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2m-6 0h6" /></svg>
             <h2 className="text-2xl font-bold">{t('projects.title')}</h2>
@@ -176,6 +203,30 @@ const ProjectDetails = () => {
               </button>
             </div>
           </div>
+          {/* Location */}
+          {showAllDetails && (
+            <div className="mb-4">
+              <div className="text-gray-500 text-xs font-semibold uppercase mb-1">{t('projects.location')}</div>
+              <div className="flex flex-col gap-2">
+                {project.location_link ? (
+                  <a
+                    href={project.location_link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-base text-gray-900 underline text-primary hover:text-primary-dark transition font-medium cursor-pointer"
+                  >
+                    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="inline-block"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.243-4.243a8 8 0 1111.314 0z" /><circle cx="12" cy="10" r="3" /></svg>
+                    {project.location}
+                  </a>
+                ) : (
+                  <span className="flex items-center gap-2 text-base text-gray-900">
+                    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="inline-block"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.243-4.243a8 8 0 1111.314 0z" /><circle cx="12" cy="10" r="3" /></svg>
+                    {project.location}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
           {/* Timeline for milestones */}
           <div className="mb-6">
             <div className="text-gray-500 text-xs font-semibold uppercase mb-3">{t('projects.progress')}</div>
@@ -185,23 +236,76 @@ const ProjectDetails = () => {
               <TimelineItem icon={<svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3" /></svg>} label={t('projects.workDuration')} value={calcWorkDuration()} naLabel={t('projects.workDurationNA')} />
             </div>
           </div>
+          {/* Amounts */}
+          {showAmounts && (
+            <div className="mb-8 border-t pt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <div className="text-gray-500 text-xs font-semibold uppercase mb-1">{t('projects.totalAmount')}</div>
+                <div className="text-lg font-bold text-gray-900">{formatAED(project.total_amount, i18n.language)}</div>
+              </div>
+              <div>
+                <div className="text-gray-500 text-xs font-semibold uppercase mb-1">{t('projects.paidAmount')}</div>
+                <div className="text-lg font-bold text-green-700">{formatAED(project.paid_amount, i18n.language)}</div>
+              </div>
+              <div>
+                <div className="text-gray-500 text-xs font-semibold uppercase mb-1">{t('projects.remainingAmount')}</div>
+                <div className="text-lg font-bold text-red-700">{formatAED(remaining, i18n.language)}</div>
+              </div>
+            </div>
+          )}
+          {/* Materials & Installers Section (Combined) */}
+          <div className="w-full flex flex-col gap-6 mb-8">
+            <div className="bg-white rounded-2xl shadow p-6 border border-gray-100">
+              <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="text-primary"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V7a2 2 0 00-2-2H6a2 2 0 00-2 2v6" /></svg>
+                {t('projects.materialsSection', 'Materials & Installers')}
+              </h3>
+              {/* Materials Table */}
+              <div className="mb-6">
+                <div className="font-semibold text-gray-700 mb-2">{t('projects.materialsSection', 'Materials')}</div>
+                {materials.length === 0 ? (
+                  <div className="text-gray-400 text-sm">{t('projects.noMaterials', 'No materials added')}</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm">
+                      <thead>
+                        <tr className="text-gray-500 text-xs uppercase">
+                          <th className="px-2 py-1">{t('projects.materialName', 'Material')}</th>
+                          <th className="px-2 py-1">{t('projects.quantity', 'Qty')}</th>
+                          <th className="px-2 py-1">{t('projects.partno', 'Part No.')}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {materials.map(mat => (
+                          <tr key={mat.id} className="border-b last:border-0">
+                            <td className="px-2 py-1 font-medium">{mat.material_name || mat.description}</td>
+                            <td className="px-2 py-1">{mat.quantity}</td>
+                            <td className="px-2 py-1">{mat.partno || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+              {/* Installers List */}
+              <div>
+                <div className="font-semibold text-gray-700 mb-2">{t('projects.installersSection', 'Installers')}</div>
+                {installers.length === 0 ? (
+                  <div className="text-gray-400 text-sm">{t('projects.noInstallers', 'No installers added')}</div>
+                ) : (
+                  <ul className="list-disc pl-6 space-y-1">
+                    {installers.map(inst => (
+                      <li key={inst.id} className="font-medium text-gray-800">{inst.installer_name}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </div>
+          {/* Notes, Created By, Created At */}
           {showAllDetails && (
             <>
-              <div className="mb-4">
-                <div className="text-gray-500 text-xs font-semibold uppercase mb-1">{t('projects.location')}</div>
-                <div className="flex flex-col gap-2">
-                  <span className="text-base text-gray-900">{project.location}</span>
-                  {project.location_link && (
-                      <button
-                        className="text-primary underline hover:text-primary-dark text-sm font-medium flex items-center gap-1"
-                        onClick={openLocation}
-                      >
-                        <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.243-4.243a8 8 0 1111.314 0z" /><circle cx="12" cy="10" r="3" /></svg>
-                        {t('common.view')}
-                      </button>
-                  )}
-                </div>
-              </div>
               <div className="mb-4">
                 <div className="text-gray-500 text-xs font-semibold uppercase mb-1">{t('projects.notes')}</div>
                 <div className="text-base text-gray-900 whitespace-pre-line">{project.notes || <span className='text-gray-400'>N/A</span>}</div>
@@ -220,22 +324,7 @@ const ProjectDetails = () => {
               )}
             </>
           )}
-          {showAmounts && (
-            <div className="mt-8 border-t pt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <div className="text-gray-500 text-xs font-semibold uppercase mb-1">{t('projects.totalAmount')}</div>
-                <div className="text-lg font-bold text-gray-900">{formatAED(project.total_amount, i18n.language)}</div>
-              </div>
-              <div>
-                <div className="text-gray-500 text-xs font-semibold uppercase mb-1">{t('projects.paidAmount')}</div>
-                <div className="text-lg font-bold text-green-700">{formatAED(project.paid_amount, i18n.language)}</div>
-              </div>
-              <div>
-                <div className="text-gray-500 text-xs font-semibold uppercase mb-1">{t('projects.remainingAmount')}</div>
-                <div className="text-lg font-bold text-red-700">{formatAED(remaining, i18n.language)}</div>
-              </div>
-            </div>
-          )}
+          {/* Admin Actions */}
           {role === 'admin' && (
             <div className="flex gap-4 mt-10">
               <button
@@ -255,7 +344,7 @@ const ProjectDetails = () => {
             </div>
           )}
         </div>
-        {/* Customer Info Card */}
+        {/* Customer Info Card (sidebar or below) */}
         <div className="w-full md:w-80 bg-white rounded-2xl shadow-xl p-0 flex flex-col border border-gray-100 transition-transform hover:scale-[1.01] duration-200">
           {/* Header */}
           <div className="flex flex-col items-center bg-primary/5 rounded-t-2xl p-6 pb-4">
@@ -311,6 +400,78 @@ const ProjectDetails = () => {
               </ul>
             </div>
           )}
+        </div>
+      </div>
+      {/* Print-only layout */}
+      <div id="project-print-layout" className="hidden-print">
+        <style>{`
+          @media print {
+            body * { visibility: hidden !important; }
+            #project-print-layout, #project-print-layout * { visibility: visible !important; }
+            #project-print-layout { position: absolute; left: 0; top: 0; width: 100vw; background: white; color: #222; padding: 32px; }
+            .no-print, .no-print * { display: none !important; }
+            .print-section { border: 2px solid #e5e7eb; border-radius: 12px; margin-bottom: 32px; padding: 24px; }
+            .print-section-title { font-size: 1.2rem; font-weight: bold; color: #111827; border-bottom: 1.5px solid #e5e7eb; margin-bottom: 16px; padding-bottom: 6px; letter-spacing: 1px; }
+            .print-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+            .print-table th, .print-table td { border: 1px solid #e5e7eb; padding: 6px 10px; text-align: left; }
+            .print-table th { background: #f3f4f6; font-weight: bold; }
+            .print-table tr:nth-child(even) { background: #fafbfc; }
+            .print-label { font-weight: bold; color: #374151; }
+            .print-value { color: #222; }
+          }
+        `}</style>
+        <div className="max-w-3xl mx-auto">
+          <div className="print-section">
+            <div className="print-section-title">{t('projects.title')}</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px' }}>
+              <div style={{ flex: 1, minWidth: 220 }}>
+                <div><span className="print-label">{t('projects.quotationNumber')}:</span> <span className="print-value">{project.quotation_number}</span></div>
+                <div><span className="print-label">{t('projects.customer')}:</span> <span className="print-value">{customer?.name}</span></div>
+                <div><span className="print-label">{t('projects.location')}:</span> <span className="print-value">{project.location}</span></div>
+                <div><span className="print-label">{t('projects.statusLabel')}:</span> <span className="print-value">{t(`projects.status.${project.status}`)}</span></div>
+              </div>
+              <div style={{ flex: 1, minWidth: 220 }}>
+                <div><span className="print-label">{t('projects.receivedAt')}:</span> <span className="print-value">{project.received_at}</span></div>
+                <div><span className="print-label">{t('projects.deliveredAt')}:</span> <span className="print-value">{project.delivered_at}</span></div>
+                <div><span className="print-label">{t('projects.totalAmount')}:</span> <span className="print-value">{formatAED(project.total_amount, i18n.language)}</span></div>
+                <div><span className="print-label">{t('projects.paidAmount')}:</span> <span className="print-value">{formatAED(project.paid_amount, i18n.language)}</span></div>
+                <div><span className="print-label">{t('projects.remainingAmount')}:</span> <span className="print-value">{formatAED(remaining, i18n.language)}</span></div>
+              </div>
+            </div>
+          </div>
+          <div className="print-section">
+            <div className="print-section-title">{t('projects.materialsSection')}</div>
+            <table className="print-table">
+              <thead>
+                <tr>
+                  <th>{t('projects.materialName', 'Material')}</th>
+                  <th>{t('projects.quantity', 'Qty')}</th>
+                  <th>{t('projects.partno', 'Part No.')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {materials.map(mat => (
+                  <tr key={mat.id}>
+                    <td>{mat.material_name || mat.description}</td>
+                    <td>{mat.quantity}</td>
+                    <td>{mat.partno || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="print-section">
+            <div className="print-section-title">{t('projects.installersSection')}</div>
+            <ul style={{ margin: 0, paddingLeft: 24 }}>
+              {installers.map(inst => (
+                <li key={inst.id} style={{ marginBottom: 4 }}>{inst.installer_name}</li>
+              ))}
+            </ul>
+          </div>
+          <div className="print-section">
+            <div className="print-section-title">{t('projects.notes')}</div>
+            <div style={{ whiteSpace: 'pre-line', color: '#222', fontSize: '1rem' }}>{project.notes}</div>
+          </div>
         </div>
       </div>
     </div>
