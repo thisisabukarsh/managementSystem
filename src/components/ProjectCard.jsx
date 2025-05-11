@@ -1,9 +1,10 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
+import { formatCurrency } from '../services/supabase';
 
 const ProjectCard = ({ project }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
 
   const getStatusColor = (status) => {
@@ -58,7 +59,7 @@ const ProjectCard = ({ project }) => {
         </div>
         <div>
           <p className="text-sm text-gray-500 mb-1">{t('projects.totalAmount')}</p>
-          <p className="text-sm font-medium">{project.total_amount} ريال</p>
+          <p className="text-sm font-medium">{formatCurrency(project.total_amount, i18n.language)}</p>
         </div>
       </div>
 

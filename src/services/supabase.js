@@ -86,10 +86,12 @@ export const USER_ROLES = {
 };
 
 // Common functions
-export const formatCurrency = (amount) => {
-  return new Intl.NumberFormat("ar-SA", {
+export const formatCurrency = (amount, lang = "en") => {
+  return new Intl.NumberFormat(lang === "ar" ? "ar-AE" : "en-AE", {
     style: "currency",
-    currency: "SAR",
+    currency: "AED",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(amount);
 };
 
