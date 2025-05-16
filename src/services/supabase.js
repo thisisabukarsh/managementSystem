@@ -112,26 +112,19 @@ export const queries = {
 
   // Projects
   getProjects: () =>
-    supabase.from(TABLES.PROJECTS.name).select(`
+    supabase.from("projects").select(`
       *,
       customer:customer_id(*),
-      created_by:created_by_user_id(*),
-      installation_teams:InstallationTeams(*),
-      project_sections:ProjectSections(*),
-      materials:Materials(*)
+      project_materials:project_materials(*,material:materials(*))
     `),
   getProjectById: (id) =>
     supabase
-      .from(TABLES.PROJECTS.name)
+      .from("projects")
       .select(
         `
-      *,
-      customer:customer_id(*),
-      created_by:created_by_user_id(*),
-      installation_teams:InstallationTeams(*),
-      project_sections:ProjectSections(*),
-      materials:Materials(*)
-    `
+        *,
+        customer:customer_id(*)
+      `
       )
       .eq("id", id)
       .single(),
@@ -180,4 +173,20 @@ export const queries = {
       .from(TABLES.USER_PROFILES.name)
       .update(updates)
       .eq("user_id", userId),
+
+  getProjectMaterialsWithDetails: (projectId) =>
+    supabase
+      .from("project_materials")
+      .select(
+        `
+        id,
+        quantity,
+        material:materials (
+          id,
+          material_name,
+          partno
+        )
+      `
+      )
+      .eq("project_id", projectId),
 };
