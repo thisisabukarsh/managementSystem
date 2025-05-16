@@ -51,6 +51,7 @@
     "materials": "المواد"
   },
   "projects": {
+    "viewLocationLink": "عرض الموقع",
     "title": "المشاريع",
     "addNew": "إضافة مشروع جديد",
     "edit": "تعديل المشروع",

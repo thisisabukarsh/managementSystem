@@ -138,7 +138,7 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
                     rel="noopener noreferrer"
                     className="text-sm text-primary hover:underline"
                   >
-                    {t("projects.viewLocation")}
+                    {t("projects.viewLocationLink")}
                   </a>
                 )}
               </td>

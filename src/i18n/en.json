@@ -129,7 +129,8 @@
     "projectEndDate": "Project End Date",
     "projectBudget": "Project Budget",
     "projectProgress": "Project Progress",
-    "projectStatus": "Project Status"
+    "projectStatus": "Project Status",
+    "viewLocationLink": "View Location"
   },
   "filters": {
     "search": "Search",
