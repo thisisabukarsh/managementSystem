@@ -184,5 +184,20 @@
     "updateSuccess": "Material updated successfully!",
     "deleteSuccess": "Material deleted successfully!",
     "partno": "Part No."
+  },
+  "customers": {
+    "title": "Customers",
+    "name": "Name",
+    "phone": "Phone",
+    "notes": "Notes",
+    "addNew": "Add New Customer",
+    "create": "Create Customer",
+    "edit": "Edit Customer",
+    "delete": "Delete Customer",
+    "deleteConfirm": "Are you sure you want to delete {{name}}?",
+    "createSuccess": "Customer created successfully",
+    "updateSuccess": "Customer updated successfully",
+    "deleteSuccess": "Customer deleted successfully",
+    "phoneCopied": "Phone number copied to clipboard"
   }
 }

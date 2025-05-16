@@ -2,18 +2,18 @@ import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { supabase } from "../services/supabase";
 import toast from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
 
 interface Customer {
   id: string;
   name: string;
   phone: string;
-  email?: string;
-  address?: string;
   notes?: string;
 }
 
 const Customers: React.FC = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -24,10 +24,40 @@ const Customers: React.FC = () => {
     null
   );
   const [searchTerm, setSearchTerm] = useState("");
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    fetchCustomers();
+    checkAdminStatus();
   }, []);
+
+  const checkAdminStatus = async () => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        navigate("/login");
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from("user_profiles")
+        .select("role")
+        .eq("user_id", user.id)
+        .single();
+
+      if (profile?.role !== "admin") {
+        navigate("/");
+        return;
+      }
+
+      setIsAdmin(true);
+      fetchCustomers();
+    } catch (error) {
+      console.error("Error checking admin status:", error);
+      navigate("/");
+    }
+  };
 
   const fetchCustomers = async () => {
     try {
@@ -74,8 +104,6 @@ const Customers: React.FC = () => {
         .update({
           name: customer.name,
           phone: customer.phone,
-          email: customer.email,
-          address: customer.address,
           notes: customer.notes,
         })
         .eq("id", customer.id);
@@ -115,11 +143,20 @@ const Customers: React.FC = () => {
     }
   };
 
+  const copyPhoneNumber = (phone: string) => {
+    navigator.clipboard.writeText(phone);
+    toast.success(t("customers.phoneCopied"));
+  };
+
   const filteredCustomers = customers.filter(
     (customer) =>
       customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       customer.phone.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  if (!isAdmin) {
+    return null;
+  }
 
   if (loading) {
     return (
@@ -183,37 +220,25 @@ const Customers: React.FC = () => {
       </div>
 
       {/* Customers List */}
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
+      <div className="overflow-x-auto flex justify-center">
+        <table className="min-w-full divide-y divide-gray-200 max-w-4xl">
           <thead className="bg-gray-50">
             <tr>
               <th
                 scope="col"
-                className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
               >
                 {t("customers.name")}
               </th>
               <th
                 scope="col"
-                className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
               >
                 {t("customers.phone")}
               </th>
               <th
                 scope="col"
-                className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                {t("customers.email")}
-              </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                {t("customers.address")}
-              </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
               >
                 {t("common.actions")}
               </th>
@@ -222,24 +247,36 @@ const Customers: React.FC = () => {
           <tbody className="bg-white divide-y divide-gray-200">
             {filteredCustomers.map((customer) => (
               <tr key={customer.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">
+                <td className="px-6 py-4 whitespace-nowrap text-center">
+                  <div className="text-sm font-medium text-gray-900 text-center">
                     {customer.name}
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-500">{customer.phone}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-500">{customer.email}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-500">
-                    {customer.address}
+                <td className="px-6 py-4 whitespace-nowrap text-center">
+                  <div
+                    className="text-sm text-gray-500 cursor-pointer hover:text-primary flex items-center justify-center gap-2"
+                    onClick={() => copyPhoneNumber(customer.phone)}
+                  >
+                    {customer.phone}
+                    <svg
+                      width="16"
+                      height="16"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      className="opacity-50"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
+                      />
+                    </svg>
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-left text-sm font-medium">
-                  <div className="flex gap-2">
+                <td className="px-6 py-4 whitespace-nowrap text-center">
+                  <div className="flex justify-center gap-2">
                     <button
                       onClick={() => {
                         setSelectedCustomer(customer);
@@ -291,7 +328,7 @@ const Customers: React.FC = () => {
             {filteredCustomers.length === 0 && (
               <tr>
                 <td
-                  colSpan={5}
+                  colSpan={3}
                   className="px-6 py-4 text-center text-sm text-gray-500"
                 >
                   {t("common.noResults")}
@@ -314,9 +351,6 @@ const Customers: React.FC = () => {
                 handleCreateCustomer({
                   name: formData.get("name") as string,
                   phone: formData.get("phone") as string,
-                  email: formData.get("email") as string,
-                  address: formData.get("address") as string,
-                  notes: formData.get("notes") as string,
                 });
               }}
               className="space-y-4"
@@ -348,48 +382,6 @@ const Customers: React.FC = () => {
                   id="phone"
                   name="phone"
                   required
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="email"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  {t("customers.email")}
-                </label>
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="address"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  {t("customers.address")}
-                </label>
-                <input
-                  type="text"
-                  id="address"
-                  name="address"
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="notes"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  {t("customers.notes")}
-                </label>
-                <textarea
-                  id="notes"
-                  name="notes"
-                  rows={3}
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
                 />
               </div>
@@ -426,9 +418,6 @@ const Customers: React.FC = () => {
                   ...selectedCustomer,
                   name: formData.get("name") as string,
                   phone: formData.get("phone") as string,
-                  email: formData.get("email") as string,
-                  address: formData.get("address") as string,
-                  notes: formData.get("notes") as string,
                 });
               }}
               className="space-y-4"
@@ -462,51 +451,6 @@ const Customers: React.FC = () => {
                   name="phone"
                   defaultValue={selectedCustomer.phone}
                   required
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="email"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  {t("customers.email")}
-                </label>
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  defaultValue={selectedCustomer.email}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="address"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  {t("customers.address")}
-                </label>
-                <input
-                  type="text"
-                  id="address"
-                  name="address"
-                  defaultValue={selectedCustomer.address}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="notes"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  {t("customers.notes")}
-                </label>
-                <textarea
-                  id="notes"
-                  name="notes"
-                  defaultValue={selectedCustomer.notes}
-                  rows={3}
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
                 />
               </div>

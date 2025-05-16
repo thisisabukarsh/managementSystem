@@ -185,5 +185,20 @@
     "updateSuccess": "تم تحديث المادة بنجاح!",
     "deleteSuccess": "تم حذف المادة بنجاح!",
     "partno": "رقم القطعة"
+  },
+  "customers": {
+    "title": "العملاء",
+    "name": "الاسم",
+    "phone": "الهاتف",
+    "notes": "ملاحظات",
+    "addNew": "إضافة عميل جديد",
+    "create": "إنشاء عميل",
+    "edit": "تعديل العميل",
+    "delete": "حذف العميل",
+    "deleteConfirm": "هل أنت متأكد من حذف {{name}}؟",
+    "createSuccess": "تم إنشاء العميل بنجاح",
+    "updateSuccess": "تم تحديث العميل بنجاح",
+    "deleteSuccess": "تم حذف العميل بنجاح",
+    "phoneCopied": "تم نسخ رقم الهاتف إلى الحافظة"
   }
 }
