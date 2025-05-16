@@ -4,7 +4,15 @@ import { useTranslation } from "react-i18next";
 import { supabase } from "../services/supabase";
 import toast from "react-hot-toast";
 import ProjectDetailsComponent from "../components/projects/ProjectDetails";
+import EditProjectModal from "../components/projects/EditProjectModal";
+import DeleteProjectModal from "../components/projects/DeleteProjectModal";
 import { queries } from "../services/supabase";
+
+interface Customer {
+  id: string;
+  name: string;
+  phone: string;
+}
 
 interface Project {
   id: string;
@@ -42,10 +50,40 @@ const ProjectDetails: React.FC = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [materials, setMaterials] = useState<any[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [customers, setCustomers] = useState<Customer[]>([]);
 
   useEffect(() => {
-    fetchProject();
-  }, [id]);
+    checkAdminStatus();
+    fetchCustomers();
+  }, []);
+
+  const checkAdminStatus = async () => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        navigate("/login");
+        return;
+      }
+      const { data: profile } = await supabase
+        .from("user_profiles")
+        .select("role")
+        .eq("user_id", user.id)
+        .single();
+      if (profile?.role !== "admin") {
+        setIsAdmin(false);
+      } else {
+        setIsAdmin(true);
+      }
+      fetchProject();
+    } catch (error) {
+      console.error("Error checking admin status:", error);
+      setIsAdmin(false);
+      fetchProject();
+    }
+  };
 
   const fetchProject = async () => {
     try {
@@ -77,34 +115,60 @@ const ProjectDetails: React.FC = () => {
     }
   };
 
-  const handleEditProject = async (updatedProject: Project) => {
+  const fetchCustomers = async () => {
     try {
-      const { error } = await supabase
-        .from("projects")
-        .update({
-          type: updatedProject.type,
-          status: updatedProject.status,
-          customer_id: updatedProject.customer_id,
-          total_amount: updatedProject.total_amount,
-          paid_amount: updatedProject.paid_amount,
-          location: updatedProject.location,
-          location_link: updatedProject.location_link,
-          received_at: updatedProject.received_at,
-          delivered_at: updatedProject.delivered_at,
-          work_duration: updatedProject.work_duration,
-          notes: updatedProject.notes,
-        })
-        .eq("id", updatedProject.id);
-
+      const { data, error } = await supabase
+        .from("customers")
+        .select("id, name, phone");
       if (error) throw error;
-
-      setProject(updatedProject);
-      setShowEditModal(false);
-      toast.success(t("projects.updateSuccess"));
+      setCustomers(data || []);
     } catch (error) {
-      console.error("Error updating project:", error);
+      console.error("Error fetching customers:", error);
       toast.error(t("common.error"));
     }
+  };
+
+  const handleEditProject = (updatedProject: any) => {
+    // Convert string fields to numbers as needed
+    const projectToSave = {
+      ...updatedProject,
+      total_amount: Number(updatedProject.total_amount) || 0,
+      paid_amount: Number(updatedProject.paid_amount) || 0,
+      location_link: updatedProject.location_link || "",
+    };
+    (async () => {
+      try {
+        const { error } = await supabase
+          .from("projects")
+          .update({
+            type: projectToSave.type,
+            status: projectToSave.status,
+            customer_id: projectToSave.customer_id,
+            total_amount: projectToSave.total_amount,
+            paid_amount: projectToSave.paid_amount,
+            location: projectToSave.location,
+            location_link: projectToSave.location_link,
+            received_at: projectToSave.received_at,
+            delivered_at: projectToSave.delivered_at,
+            work_duration: projectToSave.work_duration,
+            notes: projectToSave.notes,
+          })
+          .eq("id", projectToSave.id);
+
+        if (error) throw error;
+
+        setProject({
+          ...projectToSave,
+          total_amount: projectToSave.total_amount,
+          paid_amount: projectToSave.paid_amount,
+        });
+        setShowEditModal(false);
+        toast.success(t("projects.updateSuccess"));
+      } catch (error) {
+        console.error("Error updating project:", error);
+        toast.error(t("common.error"));
+      }
+    })();
   };
 
   const handleDeleteProject = async () => {
@@ -169,8 +233,35 @@ const ProjectDetails: React.FC = () => {
         }}
         onEdit={() => setShowEditModal(true)}
         onDelete={() => setShowDeleteModal(true)}
+        isAdmin={isAdmin}
       />
-      {/* Edit and Delete modals remain here, not shown for brevity */}
+      {/* Edit Project Modal */}
+      {showEditModal && project && (
+        <EditProjectModal
+          isOpen={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          onSubmit={handleEditProject}
+          project={{
+            ...project,
+            total_amount: String(project.total_amount),
+            paid_amount: String(project.paid_amount),
+            location_link: project.location_link || "",
+            delivered_at: project.delivered_at || "",
+            work_duration: project.work_duration || "",
+            notes: project.notes || "",
+          }}
+          customers={customers}
+        />
+      )}
+      {/* Delete Project Modal */}
+      {showDeleteModal && project && (
+        <DeleteProjectModal
+          isOpen={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          onConfirm={handleDeleteProject}
+          projectNumber={project.quotation_number}
+        />
+      )}
     </div>
   );
 };

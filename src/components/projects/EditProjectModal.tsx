@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { PROJECT_TYPES } from "../../services/supabase";
 
 interface Customer {
   id: string;

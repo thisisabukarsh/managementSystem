@@ -1,7 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { formatCurrency } from "../../services/supabase";
 
 interface Project {
   id: string;
@@ -32,10 +31,10 @@ interface ProjectTableProps {
 
 const ProjectTable: React.FC<ProjectTableProps> = ({
   projects,
-  onEdit,
-  onDelete,
+  // onEdit,
+  // onDelete,
 }) => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   const getStatusColor = (status: string) => {

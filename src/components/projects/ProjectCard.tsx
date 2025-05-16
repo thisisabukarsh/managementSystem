@@ -1,7 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { formatCurrency } from "../../services/supabase";
 
 interface Project {
   id: string;
@@ -32,10 +31,10 @@ interface ProjectCardProps {
 
 const ProjectCard: React.FC<ProjectCardProps> = ({
   project,
-  onEdit,
-  onDelete,
+  // onEdit,
+  // onDelete,
 }) => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   const getStatusColor = (status: string) => {
@@ -66,8 +65,8 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
     }
   };
 
-  const remainingAmount =
-    parseFloat(project.total_amount) - parseFloat(project.paid_amount);
+  // const remainingAmount =
+  //   parseFloat(project.total_amount) - parseFloat(project.paid_amount);
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
