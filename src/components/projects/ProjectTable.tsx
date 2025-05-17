@@ -29,11 +29,7 @@ interface ProjectTableProps {
   onDelete: (project: Project) => void;
 }
 
-const ProjectTable: React.FC<ProjectTableProps> = ({
-  projects,
-  // onEdit,
-  // onDelete,
-}) => {
+const ProjectTable: React.FC<ProjectTableProps> = ({ projects }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
